@@ -4,5 +4,5 @@
 
 typedef struct {
 	SOCKET cmdSock;
-	char *userName;
+	char *username;
 } SESSION, *LPSESSION;

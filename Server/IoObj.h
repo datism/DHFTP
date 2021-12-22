@@ -1,4 +1,5 @@
 #pragma once
+
 #include <WinSock2.h>
 #include "EnvVar.h"
 
@@ -6,7 +7,6 @@ typedef struct {
 	WSAOVERLAPPED overlapped;
 	WSABUF dataBuff;
 	CHAR buffer[BUFFSIZE];
-	int length;
 	int operation;
 	enum OP {
 		RECV_C,
@@ -14,10 +14,16 @@ typedef struct {
 		RECV_F
 	};
 
-	void setBuffer(char *i_buffer) {
+	void setBufferSend(char *i_buffer) {
 		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		length = strlen(buffer);
-		dataBuff.len = length;
+		dataBuff.buf = buffer;
+		dataBuff.len = strlen(buffer);
+	}
+
+	void setBufferRecv(char *i_buffer) {
+		strcpy_s(buffer, BUFFSIZE, i_buffer);
+		dataBuff.buf = buffer + strlen(buffer);
+		dataBuff.len = BUFFSIZE;
 	}
 
 } IO_OBJ, *LPIO_OBJ;

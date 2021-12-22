@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 	// Step 4: Create a listening socket
 	SOCKET listenSock;
 	SOCKADDR_IN serverAddr;
-	if ((listenSock = WSASocketW(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
+	if ((listenSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
 		printf("WSASocket() failed with error %d\n", WSAGetLastError());
 		return 1;
 	}
@@ -102,38 +102,43 @@ int main(int argc, char *argv[]) {
 
 
 
-void handleRecieve(LPIO_OBJ ioobj, LPSESSION session, DWORD transferredBytes) {
-	ioobj->buffer[transferredBytes] = 0;
-	char *pos = NULL;
-	char *mess = ioobj->buffer;
-	LPIO_OBJ reply;
-	char reply[BUFFSIZE];
+void handleRecieve(LPIO_OBJ recieveObj, LPSESSION session, DWORD transferredBytes) {
+	recieveObj->buffer[transferredBytes] = 0;
+	LPIO_OBJ replyObj;
+	char *mess = recieveObj->buffer,
+		* pos = NULL,
+		reply[BUFFSIZE];
 
+	//Split string by ending delimiter
 	while ((pos = strstr(mess, ENDING_DELIMITER)) != NULL){
-		reply = getIoObject(IO_OBJ::SEND_C);
-		handleMess(session, mess, reply->buffer);
-		reply->length = strlen(reply->buffer);
-		WSASend(session->cmdSock, &(reply->dataBuff), 1, NULL, 0, &(reply->overlapped), NULL);
+		*pos = 0;
+		handleMess(session, mess, reply);
+		
+		//Creat new overlapped object to send
+		replyObj = getIoObject(IO_OBJ::SEND_C);
+		replyObj->setBufferSend(reply);
+
+		WSASend(session->cmdSock, &(replyObj->dataBuff), 1, NULL, 0, &(replyObj->overlapped), NULL);
 		mess = pos + strlen(ENDING_DELIMITER);
 	}
 
-	if (strlen(mess) != 0) {
-		strcpy_s(ioobj->buffer, BUFFSIZE, mess);
-		ioobj->dataBuff.buf = ioobj->buffer + strlen(mess) + 1;
-	}
+	//The remaining buffer which doesnt end with ending delimiter
+	recieveObj->setBufferRecv(mess);
 
-	WSARecv(session->cmdSock, &(ioobj->dataBuff), 1, NULL, 0, &(ioobj->overlapped), NULL);
+	WSARecv(session->cmdSock, &(recieveObj->dataBuff), 1, NULL, 0, &(recieveObj->overlapped), NULL);
 }
 
-void handleSend(LPIO_OBJ ioobj, LPSESSION session, DWORD transferredBytes) {
-	if (transferredBytes < ioobj->length) {
-		int len = ioobj->length - transferredBytes;
-		ioobj->dataBuff.buf = ioobj->buffer + strlen(ioobj->buffer) - len;
-		ioobj->length = len;
-		WSASend(session->cmdSock, &(ioobj->dataBuff), 1, NULL, 0, &(ioobj->overlapped), NULL);
+void handleSend(LPIO_OBJ sendObj, LPSESSION session, DWORD transferredBytes) {
+	DWORD bufferLen = strlen(sendObj->buffer);
+
+	if (transferredBytes < bufferLen) {
+		sendObj->dataBuff.len = bufferLen - transferredBytes;
+		sendObj->dataBuff.buf = sendObj->buffer + bufferLen - sendObj->dataBuff.len;
+
+		WSASend(session->cmdSock, &(sendObj->dataBuff), 1, NULL, 0, &(sendObj->overlapped), NULL);
 	}
 	else
-		free(ioobj);
+		free(sendObj);
 }
 
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
@@ -141,8 +146,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 	DWORD transferredBytes;
 	LPSESSION session = NULL;
 	LPIO_OBJ ioobj = NULL;
-	ULONG_PTR key;
-	DWORD flag;
+	ULONG_PTR key = NULL;
 
 	while (true) {
 		if (GetQueuedCompletionStatus(completionPort, &transferredBytes, (PULONG_PTR) key, (LPOVERLAPPED *)&ioobj, INFINITE) == 0) {
@@ -153,7 +157,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 		/*if (buffer->operation == BUFFER::RECV_F)
 			session = CONTAINING_RECORD(key, SESSION, fileSock);
 		else*/
-			session == CONTAINING_RECORD(key, SESSION, cmdSock);
+			session = CONTAINING_RECORD(key, SESSION, cmdSock);
 
 		// Check to see if an error has occurred on the socket and if so
 		// then close the socket and cleanup the SOCKET_INFORMATION structure

@@ -4,5 +4,8 @@
 
 typedef struct {
 	SOCKET cmdSock;
+	//SOCKET fileSock;
 	char *username;
 } SESSION, *LPSESSION;
+
+void freeSession(LPSESSION);

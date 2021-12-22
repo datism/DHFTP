@@ -1,4 +1,6 @@
 #include "Service.h"
+#include "EnvVar.h"
+#include <stdio.h>
 
 /**
  * @brief handle message form client
@@ -14,14 +16,10 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
     parseMess(mess, cmd, p1, p2);
 
     /**
-     * đoạn này xử lý cmd
-     * so sánh cmd với mấy cái header trong cái báo cáo tiến độ
-     * bằng cái nào thì gọi hàm đấy
-     * cẩn thận cmd có thể null
-     * mấy hàm xử lý bên dưới là t nghĩ qua
-     * có thể một vài tham số không cần thiết
-     * nhưng tham số reply cần thiết 
+     * handle
      */
+     
+	sprintf_s(reply, BUFFSIZE, "330 Wrong format")
 }
 
 /**
@@ -143,7 +141,7 @@ void handlePRINTWDIR(LPSESSION session, char *reply) {
  * @param[in] session 
  * @param[out] pathname 
  */
-void handleLISTDIR(LPSESSION session, char *pathname) {
+void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 
 }
 

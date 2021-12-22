@@ -8,7 +8,7 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation) {
 		return NULL;
 	}
 	ZeroMemory(&(ioObj->overlapped), sizeof(OVERLAPPED));
-	ioObj->len = 0;
+	ioObj->length = 0;
 	ioObj->dataBuff.len = BUFFSIZE;
 	ioObj->dataBuff.buf = ioObj->buffer;
 	ioObj->operation = operation;

@@ -8,4 +8,4 @@ typedef struct {
 	char *username;
 } SESSION, *LPSESSION;
 
-void freeSession(LPSESSION);
+void freeSession(_In_ LPSESSION);

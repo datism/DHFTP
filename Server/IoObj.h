@@ -6,7 +6,11 @@
 typedef struct {
 	WSAOVERLAPPED overlapped;
 	WSABUF dataBuff;
+
+	_Field_z_
 	CHAR buffer[BUFFSIZE];
+
+	_Field_range_(0, 2)
 	int operation;
 	enum OP {
 		RECV_C,
@@ -14,14 +18,10 @@ typedef struct {
 		RECV_F
 	};
 
-	void setBufferSend(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		dataBuff.buf = buffer;
-		dataBuff.len = strlen(buffer);
-	}
+	void setBufferSend(_In_z_ char *i_buffer);
 
-	void setBufferRecv(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
+	void setBufferRecv(_In_z_ char *i_buffer) {
+		int ret = strcpy_s(buffer, BUFFSIZE, i_buffer);
 		dataBuff.buf = buffer + strlen(buffer);
 		dataBuff.len = BUFFSIZE;
 	}
@@ -29,5 +29,5 @@ typedef struct {
 } IO_OBJ, *LPIO_OBJ;
 
 
-LPIO_OBJ getIoObject(IO_OBJ::OP operation);
-void freeIoObject(LPIO_OBJ ioobj);
+_Ret_maybenull_ LPIO_OBJ getIoObject(_In_opt_ IO_OBJ::OP operation);
+void freeIoObject(_In_ LPIO_OBJ ioobj);

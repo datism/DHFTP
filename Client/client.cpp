@@ -9,9 +9,9 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 void CALLBACK workerRoutine(DWORD error, DWORD transferredBytes, LPWSAOVERLAPPED lpOverlapped, DWORD inFlags);
-void chooseService(LPIO_OBJ sendObj);
-void blockSend(SOCKET sock, LPIO_OBJ sendObj);
-void blockReceive(SOCKET sock, LPIO_OBJ receiveObj);
+void chooseService(_Inout_ LPIO_OBJ sendObj);
+void blockSend(_In_ SOCKET sock, _Inout_ LPIO_OBJ sendObj);
+void blockReceive(_In_ SOCKET sock, _Inout_ LPIO_OBJ receiveObj);
 
 int main(int argc, char* argv[]) {
 	// Validate the parameters
@@ -47,6 +47,9 @@ int main(int argc, char* argv[]) {
 	LPIO_OBJ sendObj = getIoObject(IO_OBJ::SEND_C);
 	LPIO_OBJ recvObj = getIoObject(IO_OBJ::RECV_C);
 
+	if (sendObj == NULL || recvObj == NULL)
+		return 1;
+
 	while (1) {
 		chooseService(sendObj);
 		blockSend(cmdSock, sendObj);
@@ -59,13 +62,15 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void chooseService(LPIO_OBJ sendObj) {
+void chooseService(_Inout_ LPIO_OBJ sendObj) {
 	printf("Choose service\n");
-	_getch();
-	sendObj->setBufferSend("LOGIN");
+	getchar();
+	sendObj->setBufferSend("LOGIN\r\nab");
+
+
 }
 
-void blockSend(SOCKET sock, LPIO_OBJ sendObj) {
+void blockSend(_In_ SOCKET sock,_Inout_ LPIO_OBJ sendObj) {
 	DWORD sentBytes = 0,
 		bufferLen = strlen(sendObj->buffer);
 	//Send all buffer
@@ -80,14 +85,15 @@ void blockSend(SOCKET sock, LPIO_OBJ sendObj) {
 	}
 }
 
-void blockReceive(SOCKET sock, LPIO_OBJ receiveObj) {
-	DWORD receivedBytes = 0;
+void blockReceive(_In_ SOCKET sock,_Inout_ LPIO_OBJ receiveObj) {
+	DWORD receivedBytes = 0,
+		flag = 0;
 	char *reply = NULL,
 		*pos = NULL;
 
 	do {
 		//Blocking receive
-		if (WSARecv(sock, &receiveObj->dataBuff, 1, &receivedBytes, 0, NULL, NULL) == SOCKET_ERROR) {
+		if (WSARecv(sock, &receiveObj->dataBuff, 1, &receivedBytes, &flag, NULL, NULL) == SOCKET_ERROR) {
 			printf("WSARecv() failed with error %d\n", WSAGetLastError());
 			return;
 		}
@@ -103,9 +109,10 @@ void blockReceive(SOCKET sock, LPIO_OBJ receiveObj) {
 		}
 
 		//Set the remaining buffer to receive
+		//reply contains garbage after this call
 		receiveObj->setBufferRecv(reply);
 
-	} while (strlen(reply) != 0); //Until buffer end with ending delimiter
+	} while (strlen(receiveObj->buffer) != 0); //Until buffer end with ending delimiter
 }
 
 void CALLBACK workerRoutine(DWORD error, DWORD transferredBytes, LPWSAOVERLAPPED lpOverlapped, DWORD inFlags) {

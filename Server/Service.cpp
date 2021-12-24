@@ -112,13 +112,13 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
     char *cmd, *p1, *p2;
 
     //Parse message
-    parseMess(mess, cmd, p1, p2);
+   // parseMess(mess, cmd, p1, p2);
 
     /**
      * handle
      */
      
-	sprintf_s(reply, BUFFSIZE, "330 Wrong format");
+	sprintf_s(reply, BUFFSIZE, "330 Wrong format\r\n");
 }
 
  void handleReply(char * reply) {

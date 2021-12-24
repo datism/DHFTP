@@ -1,7 +1,7 @@
 #include "Session.h"
 #include <stdio.h>
 
-void freeSession(LPSESSION session) {
+void freeSession(_In_ LPSESSION session) {
 	printf("Closing socket %d\n", session->cmdSock);
 	if (closesocket(session->cmdSock) == SOCKET_ERROR) {
 		printf("close comand socket failed with error %d\n", WSAGetLastError());

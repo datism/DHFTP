@@ -107,8 +107,6 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-
-
 void handleRecieve(_Inout_ LPIO_OBJ recieveObj,_Inout_ LPSESSION session,_In_range_(1, BUFFSIZE) DWORD transferredBytes) {
 	recieveObj->buffer[transferredBytes] = 0;
 	LPIO_OBJ replyObj;
@@ -150,6 +148,17 @@ void handleSend(_Inout_ LPIO_OBJ sendObj,_Inout_ LPSESSION session, _In_range_(1
 	}
 	else
 		freeIoObject(sendObj);
+}
+
+void handleRecvFile(_Inout_ LPIO_OBJ recvObj, _Inout_ LPSESSION session, _In_range_(1, BUFFSIZE) DWORD transferredBytes) {
+	recvObj->operation = IO_OBJ::WRTE_F;
+	WriteFile(recvObj->file, recvObj->buffer, transferredBytes, NULL, &recvObj->overlapped);
+}
+
+void handleWriteFile(_Inout_ LPIO_OBJ writeObj, _Inout_ LPSESSION session, _In_range_(1, BUFFSIZE) DWORD transferredBytes) {
+	DWORD flags = 0;
+	writeObj->operation = IO_OBJ::RECV_F;
+	WSARecv(session->fileSock, &writeObj->dataBuff, 1, NULL, &flags, &writeObj->overlapped, NULL);
 }
 
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {

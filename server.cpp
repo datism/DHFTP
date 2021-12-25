@@ -95,7 +95,7 @@ int main() {
 		cout << "SUCCESS" << endl;
 	}
 
-	query += "UPDATE Account SET status = 1;";
+	query = "UPDATE Account SET status = 1 WHERE username='" + username + "';";
 	wstr = converter.from_bytes(query);
 	wcout << wstr << endl;
 

@@ -82,7 +82,7 @@ int main() {
 	getline(cin, password);
 
 	if (username.length() == 0 || password.length() == 0) {
-		//315
+		                                    												//315
 		cout << "Empty field" << endl;
 	}
 	else if (mode == 1) {
@@ -122,22 +122,22 @@ int main() {
 						cout << "\n";
 					}
 					else {
-						//110
+																		//110
 						cout << "Log in successful!" << endl;
 					}
 				}
 				else {
-					//311
+																		//311
 					cout << "Already logged in" << endl;
 				}
 			}
 			else {
-				//314
+																		//314
 				cout << "Wrong password" << endl;
 			}
 		}
 		else {
-			//312
+																		//312
 			cout << "Username doesn't exist" << endl;
 		}
 	}
@@ -150,11 +150,11 @@ int main() {
 		wstr = converter.from_bytes(query);
 
 		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-			//313
+																		//313
 			cout << "Username already exists" << endl;
 		}
 		else {
-			//112
+																		//112
 			cout << "Sign up successful" << endl;;
 		}
 	}
@@ -189,12 +189,12 @@ int main() {
 					cout << "\n";
 				}
 				else {
-					//111
+																		//111
 					cout << "Log out successful!" << endl;
 				}
 			}
 			else {
-				//310
+																		//310
 				cout << "Log out failed. Didn't log in" << endl;
 			}
 		}

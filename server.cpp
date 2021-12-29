@@ -82,7 +82,7 @@ int main() {
 	getline(cin, password);
 
 	if (username.length() == 0 || password.length() == 0) {
-		                                    												//315
+																		//315
 		cout << "Empty field" << endl;
 	}
 	else if (mode == 1) {
@@ -139,6 +139,7 @@ int main() {
 		else {
 																		//312
 			cout << "Username doesn't exist" << endl;
+			SQLCloseCursor(sqlStmtHandle);
 		}
 	}
 	else if (mode == 2) {
@@ -197,6 +198,9 @@ int main() {
 																		//310
 				cout << "Log out failed. Didn't log in" << endl;
 			}
+		}
+		else {
+			SQLCloseCursor(sqlStmtHandle);
 		}
 	}
 

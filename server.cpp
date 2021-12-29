@@ -36,7 +36,7 @@ int main() {
 		goto COMPLETED;
 	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_DBC, sqlEnvHandle, &sqlConnHandle))
 		goto COMPLETED;
-	
+	//output
 	cout << "Attempting connection to SQL Server...";
 	cout << "\n";
 
@@ -72,39 +72,132 @@ int main() {
 	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &sqlStmtHandle))
 		goto COMPLETED;
 
+	cout << "Choose mode: 1: Log In   2: Sign Up    3: Log out" << endl;
+	cin >> mode;
+
+	getline(cin, username);
 	cout << "Enter username: ";
 	getline(cin, username);
 	cout << "Enter password: ";
 	getline(cin, password);
 
-	cout << "\n";
-	cout << "Logging in...";
-	cout << "\n";
-	
-	SQLRETURN ret;
-
-	query = "SELECT * FROM Account WHERE username='" + username + "';";
-	wstr = converter.from_bytes(query);
-	wcout << wstr << endl;
-
-	/* Insert one row of data. */
-	if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "ERROR" << endl;
+	if (username.length() == 0 || password.length() == 0) {
+		                                    												//315
+		cout << "Empty field" << endl;
 	}
-	else {
-		cout << "SUCCESS" << endl;
-	}
+	else if (mode == 1) {
+		cout << "\n";
+		cout << "Logging in...";
+		cout << "\n";
 
-	query = "UPDATE Account SET status = 1 WHERE username='" + username + "';";
-	wstr = converter.from_bytes(query);
-	wcout << wstr << endl;
+		query = "SELECT * FROM Account where username='" + username + "'";
+		wstr = converter.from_bytes(query);
 
-	/* Insert one row of data. */
-	if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "ERROR" << endl;
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			cout << "Error querying SQL Server";
+			cout << "\n";
+		}
+
+		SQLCHAR sqlUsername[50];
+		SQLCHAR sqlPassword[50];
+		SQLCHAR sqlStatus[50];
+
+		if (SQLFetch(sqlStmtHandle) == SQL_SUCCESS) {
+			SQLGetData(sqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
+			SQLGetData(sqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
+			SQLGetData(sqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+			string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
+			string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+			SQLCloseCursor(sqlStmtHandle);
+
+			if (password == strSqlPassword) {
+				if (strSqlStatus == "0") {
+					query = "UPDATE Account SET status = 1 WHERE username='" + username + "';";
+					wstr = converter.from_bytes(query);
+					wcout << wstr << endl;
+					if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+						cout << "Error querying SQL Server";
+						cout << "\n";
+					}
+					else {
+																		//110
+						cout << "Log in successful!" << endl;
+					}
+				}
+				else {
+																		//311
+					cout << "Already logged in" << endl;
+				}
+			}
+			else {
+																		//314
+				cout << "Wrong password" << endl;
+			}
+		}
+		else {
+																		//312
+			cout << "Username doesn't exist" << endl;
+		}
 	}
-	else {
-		cout << "SUCCESS" << endl;
+	else if (mode == 2) {
+		cout << "\n";
+		cout << "Signing up...";
+		cout << "\n";
+
+		query = "INSERT INTO Account VALUES ('" + username + "','" + password + "',0)";
+		wstr = converter.from_bytes(query);
+
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+																		//313
+			cout << "Username already exists" << endl;
+		}
+		else {
+																		//112
+			cout << "Sign up successful" << endl;;
+		}
+	}
+	else if (mode == 3) {
+		cout << "\n";
+		cout << "Logging out...";
+		cout << "\n";
+
+		query = "SELECT * FROM Account where username='" + username + "'";
+		wstr = converter.from_bytes(query);
+
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			cout << "Error querying SQL Server";
+			cout << "\n";
+		}
+
+		SQLCHAR sqlStatus[50];
+
+		if (SQLFetch(sqlStmtHandle) == SQL_SUCCESS) {
+			SQLGetData(sqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+			string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+			SQLCloseCursor(sqlStmtHandle);
+
+			if (strSqlStatus == "1") {
+				query = "UPDATE Account SET status = 0 WHERE username='" + username + "';";
+				wstr = converter.from_bytes(query);
+				wcout << wstr << endl;
+				if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+					cout << "Error querying SQL Server";
+					cout << "\n";
+				}
+				else {
+																		//111
+					cout << "Log out successful!" << endl;
+				}
+			}
+			else {
+																		//310
+				cout << "Log out failed. Didn't log in" << endl;
+			}
+		}
 	}
 
 COMPLETED:

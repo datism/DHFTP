@@ -61,7 +61,7 @@ SQLHANDLE connectSQL() {
 	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &sqlStmtHandle))
 		cout << "Alloc handle failed";
 
-	return sqlStmtHandle;
+    return sqlStmtHandle;
 }
 
 void handleREGISTER(SQLHANDLE sqlStmtHandle, string username, string password) {

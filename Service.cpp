@@ -185,11 +185,27 @@ void handleLOGOUT(SQLHANDLE sqlStmtHandle, string username) {
 
 void parseMess(char *mess, char *cmd, char *p1, char *p2) {
 	string strMess = mess;
-	int lenStr = strMess.length(), spPos = strMess.find("\r"), crPos = strMess.find(" ");
-	string strCmd = strMess.substr(0, spPos);
-	string strP1 = strMess.substr(spPos + 1, crPos - spPos - 1);
-	string strP2 = strMess.substr(crPos + 1, lenStr - crPos - 1);
-	cmd = &strCmd[0];
-	p1 = &strP1[0];
-	p2 = &strP2[0];
+	string strCmd, strP1, strP2;
+	int lenStr = strMess.length(), crPos = strMess.find("\r"), spPos = strMess.find(" ");
+	if (crPos == -1) {
+		string strCmd = strMess.substr(0, lenStr);
+		cmd = _strdup(strCmd.c_str());
+		p1 = NULL;
+		p2 = NULL;
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		cmd = _strdup(strCmd.c_str());
+		if (spPos == -1) {
+			strP1 = strMess.substr(crPos + 1, lenStr - crPos - 1);
+			p1 = _strdup(strP1.c_str());
+			p2 = NULL;
+		}
+		else {
+			strP1 = strMess.substr(crPos + 1, spPos - crPos - 1);
+			p1 = _strdup(strP1.c_str());
+			strP2 = strMess.substr(spPos + 1, lenStr - spPos - 1);
+			p2 = _strdup(strP2.c_str());
+		}
+	}
 }

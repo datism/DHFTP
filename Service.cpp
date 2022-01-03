@@ -61,8 +61,9 @@ SQLHANDLE connectSQL() {
 	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &sqlStmtHandle))
 		cout << "Alloc handle failed";
 
-    return sqlStmtHandle;
+	return sqlStmtHandle;
 }
+
 
 void handleREGISTER(SQLHANDLE sqlStmtHandle, string username, string password) {
 	string query;
@@ -180,4 +181,15 @@ void handleLOGOUT(SQLHANDLE sqlStmtHandle, string username) {
 	else {
 		SQLCloseCursor(sqlStmtHandle);
 	}
+}
+
+void parseMess(char *mess, char *cmd, char *p1, char *p2) {
+	string strMess = mess;
+	int lenStr = strMess.length(), spPos = strMess.find("\r"), crPos = strMess.find(" ");
+	string strCmd = strMess.substr(0, spPos);
+	string strP1 = strMess.substr(spPos + 1, crPos - spPos - 1);
+	string strP2 = strMess.substr(crPos + 1, lenStr - crPos - 1);
+	cmd = &strCmd[0];
+	p1 = &strP1[0];
+	p2 = &strP2[0];
 }

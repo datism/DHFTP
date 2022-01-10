@@ -1,18 +1,31 @@
 #include "Session.h"
+#include "FileObj.h"
 #include <stdio.h>
+
+_Ret_maybenull_ LPSESSION getSession() {
+	LPSESSION session;
+
+	if ((session = (LPSESSION)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(SESSION))) == NULL)
+		printf("HeapAlloc() failed with error %d\n", GetLastError());
+
+	return session;
+}
 
 void freeSession(_In_ LPSESSION session) {
 	printf("Closing socket %d\n", session->cmdSock);
 	if (closesocket(session->cmdSock) == SOCKET_ERROR) {
 		printf("close comand socket failed with error %d\n", WSAGetLastError());
 	}
+	
+	session->closeFile();
 
-	/*if (session->fileSock != 0) {
-	printf("Closing socket %d\n", session->fileSock);
-	if (closesocket(session->fileSock) == SOCKET_ERROR) {
-	printf("close file socket failed with error %d\n", WSAGetLastError());
-	}
-	}*/
-
-	GlobalFree(session);
+	HeapFree(GetProcessHeap(), NULL, session);
 }
+
+void SESSION::closeFile() {
+	if (this->fileobj != NULL)
+		FreeFileObj(this->fileobj);
+	fileobj = NULL;
+}
+
+

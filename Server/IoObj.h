@@ -1,40 +1,33 @@
 #pragma once
-
 #include <WinSock2.h>
-#include <fileapi.h>
-#include "EnvVar.h"
 
 typedef struct IO_OBJ {
 	WSAOVERLAPPED overlapped;
 	WSABUF dataBuff;
 
 	_Field_z_
-	CHAR buffer[BUFFSIZE];
+	CHAR *buffer;
 
-	_Field_range_(0, 2)
 	int operation;
 	enum OP {
 		RECV_C,
 		SEND_C,
 		RECV_F,
+		SEND_F,
 		WRTE_F
 	};
 
-	HANDLE file;
+	int sequence;
 
 	void setBufferSend(_In_z_ char *i_buffer);
 
 	void setBufferRecv(_In_z_ char *i_buffer);
-
-	bool setFile(_In_z_ char *fileName) {
-		this->file = CreateFileA(fileName, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-		if (this->file == INVALID_HANDLE_VALUE)
-			return false;
-		return true;
-	}
-
 } IO_OBJ, *LPIO_OBJ;
 
 
-_Ret_maybenull_ LPIO_OBJ getIoObject(_In_opt_ IO_OBJ::OP operation);
+_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);
 void freeIoObject(_In_ LPIO_OBJ ioobj);
+
+bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj);
+bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj);
+bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj);

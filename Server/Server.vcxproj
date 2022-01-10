@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FileObj.cpp" />
     <ClCompile Include="IoObj.cpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="Service.cpp" />
@@ -149,6 +150,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnvVar.h" />
+    <ClInclude Include="FileObj.h" />
     <ClInclude Include="IoObj.h" />
     <ClInclude Include="Service.h" />
     <ClInclude Include="Session.h" />

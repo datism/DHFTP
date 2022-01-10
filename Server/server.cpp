@@ -1,178 +1,215 @@
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-#include <process.h>
-#include <stdio.h>
-#include "Session.h"
-#include "IoObj.h"
-#include "Service.h"
+// Server.cpp : Defines the entry point for the console application.
+//
 
-#pragma comment(lib, "Ws2_32.lib")
+#include "stdafx.h"
+#include <iostream>
+#include <windows.h>
+#include <sqlext.h>
+#include <sqltypes.h>
+#include <sql.h>
+#include <string>
+#include <codecvt>
+using namespace std;
 
+#define SQL_RESULT_LEN 240
+#define SQL_RETURN_CODE_LEN 1000
 
-unsigned __stdcall serverWorkerThread(LPVOID completionPortID);
+int main() {
+	string username, password;
+	int mode;
 
-int main(int argc, char *argv[]) {
-	WSADATA wsaData;
-	if (WSAStartup((2, 2), &wsaData) != 0) {
-		printf("WSAStartup() failed with error %d\n", GetLastError());
-		return 1;
+	string query;
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	wstring wstr;
+
+	SQLHANDLE sqlConnHandle;
+	SQLHANDLE sqlStmtHandle;
+	SQLHANDLE sqlEnvHandle;
+	SQLWCHAR retconstring[SQL_RETURN_CODE_LEN];
+
+	sqlConnHandle = NULL;
+	sqlStmtHandle = NULL;
+
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &sqlEnvHandle))
+		goto COMPLETED;
+	if (SQL_SUCCESS != SQLSetEnvAttr(sqlEnvHandle, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0))
+		goto COMPLETED;
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_DBC, sqlEnvHandle, &sqlConnHandle))
+		goto COMPLETED;
+	//output
+	cout << "Attempting connection to SQL Server...";
+	cout << "\n";
+
+	switch (SQLDriverConnect(sqlConnHandle,
+		NULL,
+		(SQLWCHAR*)L"DRIVER={SQL Server};SERVER=localhost, 1433;DATABASE=FileSystem;UID=sa;PWD=minh1234;",
+		SQL_NTS,
+		retconstring,
+		1024,
+		NULL,
+		SQL_DRIVER_NOPROMPT))
+	{
+	case SQL_SUCCESS:
+		cout << "Successfully connected to SQL Server";
+		cout << "\n";
+		break;
+	case SQL_SUCCESS_WITH_INFO:
+		cout << "Successfully connected to SQL Server";
+		cout << "\n";
+		break;
+	case SQL_INVALID_HANDLE:
+		cout << "Could not connect to SQL Server";
+		cout << "\n";
+		goto COMPLETED;
+	case SQL_ERROR:
+		cout << "Could not connect to SQL Server";
+		cout << "\n";
+		goto COMPLETED;
+	default:
+		break;
 	}
 
-	// Step 1: Setup an I/O completion port
-	HANDLE completionPort;
-	if ((completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0)) == NULL) {
-		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
-		return 1;
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &sqlStmtHandle))
+		goto COMPLETED;
+
+	cout << "Choose mode: 1: Log In   2: Sign Up    3: Log out" << endl;
+	cin >> mode;
+
+	getline(cin, username);
+	cout << "Enter username: ";
+	getline(cin, username);
+	cout << "Enter password: ";
+	getline(cin, password);
+
+	if (username.length() == 0 || password.length() == 0) {
+																		//315
+		cout << "Empty field" << endl;
 	}
+	else if (mode == 1) {
+		cout << "\n";
+		cout << "Logging in...";
+		cout << "\n";
 
-	// Step 2: Determine how many processors are on the system
-	SYSTEM_INFO systemInfo;
-	GetSystemInfo(&systemInfo);
+		query = "SELECT * FROM Account where username='" + username + "'";
+		wstr = converter.from_bytes(query);
 
-	// Step 3: Create worker threads based on the number of processors available on the
-	// system. Create two worker threads for each processor	
-	for (int i = 0; i < (int)systemInfo.dwNumberOfProcessors * 2; i++) {
-		// Create a server worker thread and pass the completion port to the thread
-		if (_beginthreadex(0, 0, serverWorkerThread, (void*)completionPort, 0, 0) == 0) {
-			printf("Create thread failed with error %d\n", GetLastError());
-			return 1;
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			cout << "Error querying SQL Server";
+			cout << "\n";
 		}
-	}
 
-	// Step 4: Create a listening socket
-	SOCKET listenSock;
-	SOCKADDR_IN serverAddr;
-	if ((listenSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
-		printf("WSASocket() failed with error %d\n", WSAGetLastError());
-		return 1;
-	}
+		SQLCHAR sqlUsername[50];
+		SQLCHAR sqlPassword[50];
+		SQLCHAR sqlStatus[50];
 
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(CMD_PORT);
-	inet_pton(AF_INET, SERVER_ADDR, &serverAddr.sin_addr);
-	if (bind(listenSock, (PSOCKADDR)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-		printf("bind() failed with error %d\n", WSAGetLastError());
-		return 1;
-	}
+		if (SQLFetch(sqlStmtHandle) == SQL_SUCCESS) {
+			SQLGetData(sqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
+			SQLGetData(sqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
+			SQLGetData(sqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
 
-	// Prepare socket for listening
-	if (listen(listenSock, 20) == SOCKET_ERROR) {
-		printf("listen() failed with error %d\n", WSAGetLastError());
-		return 1;
-	}
+			string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
+			string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
 
-	SOCKET acceptSock;
-	LPSESSION session;
-	LPIO_OBJ ioobj;
-	DWORD flags, transferredBytes;
-	while (true) {
-		// Step 5: Accept connections
-		if ((acceptSock = WSAAccept(listenSock, NULL, NULL, NULL, 0)) == SOCKET_ERROR) {
-			printf("WSAAccept() failed with error %d\n", WSAGetLastError());
-			return 1;
-		}
+			SQLCloseCursor(sqlStmtHandle);
 
-		// Step 6: Create a socket information structure to associate with the socket
-		if ((session = (LPSESSION)GlobalAlloc(GPTR, sizeof(SESSION))) == NULL) {
-			printf("GlobalAlloc() failed with error %d\n", GetLastError());
-			return 1;
-		}
-
-		// Step 7: Associate the accepted socket with the original completion port
-		printf("Socket number %d got connected...\n", acceptSock);
-		session->cmdSock = acceptSock;
-		if (CreateIoCompletionPort((HANDLE)acceptSock, completionPort, (DWORD)session, 0) == NULL) {
-			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
-			return 1;
-		}
-
-		ioobj = getIoObject(IO_OBJ::RECV_C);
-		flags = 0;
-
-		if (WSARecv(acceptSock, &(ioobj->dataBuff), 1, &transferredBytes, &flags, &(ioobj->overlapped), NULL) == SOCKET_ERROR) {
-			if (WSAGetLastError() != ERROR_IO_PENDING) {
-				printf("WSARecv() failed with error %d\n", WSAGetLastError());
-				return 1;
+			if (password == strSqlPassword) {
+				if (strSqlStatus == "0") {
+					query = "UPDATE Account SET status = 1 WHERE username='" + username + "';";
+					wstr = converter.from_bytes(query);
+					wcout << wstr << endl;
+					if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+						cout << "Error querying SQL Server";
+						cout << "\n";
+					}
+					else {
+																		//110
+						cout << "Log in successful!" << endl;
+					}
+				}
+				else {
+																		//311
+					cout << "Already logged in" << endl;
+				}
+			}
+			else {
+																		//314
+				cout << "Wrong password" << endl;
 			}
 		}
+		else {
+																		//312
+			cout << "Username doesn't exist" << endl;
+			SQLCloseCursor(sqlStmtHandle);
+		}
 	}
+	else if (mode == 2) {
+		cout << "\n";
+		cout << "Signing up...";
+		cout << "\n";
 
-	return 0;
-}
+		query = "INSERT INTO Account VALUES ('" + username + "','" + password + "',0)";
+		wstr = converter.from_bytes(query);
 
-
-
-void handleRecieve(LPIO_OBJ recieveObj, LPSESSION session, DWORD transferredBytes) {
-	recieveObj->buffer[transferredBytes] = 0;
-	LPIO_OBJ replyObj;
-	char *mess = recieveObj->buffer,
-		* pos = NULL,
-		reply[BUFFSIZE];
-
-	//Split string by ending delimiter
-	while ((pos = strstr(mess, ENDING_DELIMITER)) != NULL){
-		*pos = 0;
-		handleMess(session, mess, reply);
-		
-		//Creat new overlapped object to send
-		replyObj = getIoObject(IO_OBJ::SEND_C);
-		replyObj->setBufferSend(reply);
-
-		WSASend(session->cmdSock, &(replyObj->dataBuff), 1, NULL, 0, &(replyObj->overlapped), NULL);
-		mess = pos + strlen(ENDING_DELIMITER);
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+																		//313
+			cout << "Username already exists" << endl;
+		}
+		else {
+																		//112
+			cout << "Sign up successful" << endl;;
+		}
 	}
+	else if (mode == 3) {
+		cout << "\n";
+		cout << "Logging out...";
+		cout << "\n";
 
-	//The remaining buffer which doesnt end with ending delimiter
-	recieveObj->setBufferRecv(mess);
+		query = "SELECT * FROM Account where username='" + username + "'";
+		wstr = converter.from_bytes(query);
 
-	WSARecv(session->cmdSock, &(recieveObj->dataBuff), 1, NULL, 0, &(recieveObj->overlapped), NULL);
-}
-
-void handleSend(LPIO_OBJ sendObj, LPSESSION session, DWORD transferredBytes) {
-	DWORD bufferLen = strlen(sendObj->buffer);
-
-	if (transferredBytes < bufferLen) {
-		sendObj->dataBuff.len = bufferLen - transferredBytes;
-		sendObj->dataBuff.buf = sendObj->buffer + bufferLen - sendObj->dataBuff.len;
-
-		WSASend(session->cmdSock, &(sendObj->dataBuff), 1, NULL, 0, &(sendObj->overlapped), NULL);
-	}
-	else
-		free(sendObj);
-}
-
-unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
-	HANDLE completionPort = (HANDLE)completionPortID;
-	DWORD transferredBytes;
-	LPSESSION session = NULL;
-	LPIO_OBJ ioobj = NULL;
-	ULONG_PTR key = NULL;
-
-	while (true) {
-		if (GetQueuedCompletionStatus(completionPort, &transferredBytes, (PULONG_PTR) key, (LPOVERLAPPED *)&ioobj, INFINITE) == 0) {
-			printf("GetQueuedCompletionStatus() failed with error %d\n", GetLastError());
-			return 0;
+		if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			cout << "Error querying SQL Server";
+			cout << "\n";
 		}
 
-		/*if (buffer->operation == BUFFER::RECV_F)
-			session = CONTAINING_RECORD(key, SESSION, fileSock);
-		else*/
-			session = CONTAINING_RECORD(key, SESSION, cmdSock);
+		SQLCHAR sqlStatus[50];
 
-		// Check to see if an error has occurred on the socket and if so
-		// then close the socket and cleanup the SOCKET_INFORMATION structure
-		// associated with the socket
-		if (transferredBytes == 0) {
-			freeSession(session);
-			GlobalFree(ioobj);
-			continue;
+		if (SQLFetch(sqlStmtHandle) == SQL_SUCCESS) {
+			SQLGetData(sqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+			string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+			SQLCloseCursor(sqlStmtHandle);
+
+			if (strSqlStatus == "1") {
+				query = "UPDATE Account SET status = 0 WHERE username='" + username + "';";
+				wstr = converter.from_bytes(query);
+				wcout << wstr << endl;
+				if (SQL_SUCCESS != SQLExecDirect(sqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+					cout << "Error querying SQL Server";
+					cout << "\n";
+				}
+				else {
+																		//111
+					cout << "Log out successful!" << endl;
+				}
+			}
+			else {
+																		//310
+				cout << "Log out failed. Didn't log in" << endl;
+			}
 		}
-
-		if (ioobj->operation == IO_OBJ::RECV_C)
-			handleRecieve(ioobj, session, transferredBytes);
-		else if (ioobj->operation == IO_OBJ::SEND_C)
-			handleSend(ioobj, session, transferredBytes);
+		else {
+			SQLCloseCursor(sqlStmtHandle);
+		}
 	}
 
-}
+COMPLETED:
+	SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle);
+	SQLDisconnect(sqlConnHandle);
+	SQLFreeHandle(SQL_HANDLE_DBC, sqlConnHandle);
+	SQLFreeHandle(SQL_HANDLE_ENV, sqlEnvHandle);
 
+	cout << "\nPress any key to exit...";
+	getchar();
+}

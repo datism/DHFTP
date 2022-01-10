@@ -1,8 +1,4 @@
 #pragma once
-#include <sqltypes.h>
-
-#define SQL_RESULT_LEN 240
-#define SQL_RETURN_CODE_LEN 1000
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
@@ -26,21 +22,19 @@
 #define RESPONE "RES"
 #define RECEIVE "RECV"
 
-extern HANDLE gCompletionPort;
-extern SQLHANDLE gSqlStmtHandle;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,
 	LOGOUT_SUCCESS = 111,
 	REGISTER_SUCCESS = 112,
-	
+
 	NOT_LOGIN = 310,
 	ALREADY_LOGIN = 311,
 	USER_NOT_EXIST = 312,
 	USER_ALREADY_EXIST = 313,
 	WRONG_PASSWORD = 314,
 	EMPTY_FIELD = 315,
-	
+
 	RETRIEVE_SUCCESS = 220,
 	STORE_SUCCESS = 221,
 	FINISH_SEND = 120,

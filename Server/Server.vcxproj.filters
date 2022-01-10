@@ -27,6 +27,9 @@
     <ClCompile Include="IoObj.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FileObj.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Service.h">
@@ -39,6 +42,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EnvVar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FileObj.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

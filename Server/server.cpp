@@ -28,41 +28,26 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// Step 2: Determine how many processors are on the system
-	SYSTEM_INFO systemInfo;
-	GetSystemInfo(&systemInfo);
+	cout << "Choose mode: 1: Log In   2: Sign Up    3: Log out" << endl;
+	cin >> mode;
 
-	// Step 3: Create worker threads based on the number of processors available on the
-	// system. Create two worker threads for each processor	
-	for (int i = 0; i < (int)systemInfo.dwNumberOfProcessors * 2; i++) {
-		// Create a server worker thread and pass the completion port to the thread
-		if (_beginthreadex(0, 0, serverWorkerThread, (void*)completionPort, 0, 0) == 0) {
-			printf("Create thread failed with error %d\n", GetLastError());
-			return 1;
-		}
-	}
+	getline(cin, username);
+	cout << "Enter username: ";
+	getline(cin, username);
+	cout << "Enter password: ";
+	getline(cin, password);
 
-	// Step 4: Create a listening socket
-	SOCKET listenSock;
-	SOCKADDR_IN serverAddr;
-	if ((listenSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
-		printf("WSASocket() failed with error %d\n", WSAGetLastError());
-		return 1;
+	if (username.length() == 0 || password.length() == 0) {
+																		//315
+		cout << "Empty field" << endl;
 	}
+	else if (mode == 1) {
+		cout << "\n";
+		cout << "Logging in...";
+		cout << "\n";
 
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(CMD_PORT);
-	inet_pton(AF_INET, SERVER_ADDR, &serverAddr.sin_addr);
-	if (bind(listenSock, (PSOCKADDR)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-		printf("bind() failed with error %d\n", WSAGetLastError());
-		return 1;
-	}
-
-	// Prepare socket for listening
-	if (listen(listenSock, 20) == SOCKET_ERROR) {
-		printf("listen() failed with error %d\n", WSAGetLastError());
-		return 1;
-	}
+		query = "SELECT * FROM Account where username='" + username + "'";
+		wstr = converter.from_bytes(query);
 
 	printf("Server started\n");
 
@@ -88,6 +73,11 @@ int main(int argc, char *argv[]) {
 			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 			return 1;
 		}
+	}
+	else if (mode == 2) {
+		cout << "\n";
+		cout << "Signing up...";
+		cout << "\n";
 
 		receiveObj = getIoObject(IO_OBJ::RECV_C, NULL, BUFFSIZE);
 		if (receiveObj == NULL) {
@@ -97,6 +87,10 @@ int main(int argc, char *argv[]) {
 
 		PostRecv(acceptSock, receiveObj);
 	}
+	else if (mode == 3) {
+		cout << "\n";
+		cout << "Logging out...";
+		cout << "\n";
 
 	return 0;
 }
@@ -233,5 +227,12 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 		}
 	}
 
-}
+COMPLETED:
+	SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle);
+	SQLDisconnect(sqlConnHandle);
+	SQLFreeHandle(SQL_HANDLE_DBC, sqlConnHandle);
+	SQLFreeHandle(SQL_HANDLE_ENV, sqlEnvHandle);
 
+	cout << "\nPress any key to exit...";
+	getchar();
+}

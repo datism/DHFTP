@@ -1,33 +1,33 @@
 #pragma once
-
 #include <WinSock2.h>
-#include "EnvVar.h"
 
-typedef struct {
+typedef struct IO_OBJ {
 	WSAOVERLAPPED overlapped;
 	WSABUF dataBuff;
-	CHAR buffer[BUFFSIZE];
+
+	_Field_z_
+	CHAR *buffer;
+
 	int operation;
 	enum OP {
 		RECV_C,
 		SEND_C,
-		RECV_F
+		RECV_F,
+		SEND_F,
+		WRTE_F
 	};
 
-	void setBufferSend(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		dataBuff.buf = buffer;
-		dataBuff.len = strlen(buffer);
-	}
+	int sequence;
 
-	void setBufferRecv(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		dataBuff.buf = buffer + strlen(buffer);
-		dataBuff.len = BUFFSIZE;
-	}
+	void setBufferSend(_In_z_ char *i_buffer);
 
+	void setBufferRecv(_In_z_ char *i_buffer);
 } IO_OBJ, *LPIO_OBJ;
 
 
-LPIO_OBJ getIoObject(IO_OBJ::OP operation);
-void freeIoObject(LPIO_OBJ ioobj);
+_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);
+void freeIoObject(_In_ LPIO_OBJ ioobj);
+
+bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj);
+bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj);
+bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj);

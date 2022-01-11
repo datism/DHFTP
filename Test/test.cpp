@@ -5,6 +5,23 @@
 #include <sstream>
 #include <stdio.h>
 
+typedef struct SESSION {
+	SOCKET cmdSock;
+	char username[MAX_PATH];
+	char workingDir[MAX_PATH];
+
+	void setUsername(const char *iUsername);
+	void setWorkingDir(const char *iWorkingDir);
+	void closeFile();
+} SESSION, *LPSESSION;
+
+void SESSION::setUsername(const char * iUsername) {
+	strcpy_s(this->username, MAX_PATH, iUsername);
+}
+
+void SESSION::setWorkingDir(const char * iWorkingDir) {
+	strcpy_s(this->workingDir, MAX_PATH, iWorkingDir);
+}
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
@@ -91,50 +108,51 @@ void initParam(char *param, const T p1, const X p2) {
 	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
 }
 
-//char *dat = "dat";
-//char *hiep = "hiep";
+bool checkAccess(LPSESSION session, char *path) {
+	char rootPath[MAX_PATH];
+	char fullPath[MAX_PATH];
+	char temp[MAX_PATH];
+
+	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
+
+	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
+	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
+
+	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
+		strcpy_s(path, MAX_PATH, temp);
+		return TRUE;
+	}
+
+	strcpy_s(path, MAX_PATH, "");
+	return FALSE;
+}
 
 
 int main() {
-	char mess1[BUFFSIZE], mess2[BUFFSIZE], mess3[BUFFSIZE], reply[BUFFSIZE];
-	initMessage(mess1, "abc", "123", "456");
-	printf("Mess1 : %s\n", mess1);
-	initMessage(mess2, "abc", "123", NULL);
-	printf("Mess2 : %s\n", mess2);
-	initMessage(mess3, "abc", NULL, NULL);
-	printf("Mess3 : %s\n", mess3);
+	//char mess1[BUFFSIZE], mess2[BUFFSIZE], mess3[BUFFSIZE], reply[BUFFSIZE];
+	//initMessage(mess1, "abc", "123", "456");
+	//printf("Mess1 : %s\n", mess1);
+	//initMessage(mess2, "abc", "123", NULL);
+	//printf("Mess2 : %s\n", mess2);
+	//initMessage(mess3, "abc", NULL, NULL);
+	//printf("Mess3 : %s\n", mess3);
 
-	//std::string res = std::to_string(LOGIN_SUCCESS);
-	initMessage(reply, RESPONE, LOGIN_SUCCESS, NULL);
-	printf("RES : %s\n", reply);
-	
-	/*char *datDir = "\\dat";*/
-	/*if (SetCurrentDirectory(datDir)) {
-		printf("SetCurrentDirectory() failed with error %d\n", GetLastError());
-		return 1;
-	}*/
+	////std::string res = std::to_string(LOGIN_SUCCESS);
+	//initMessage(reply, RESPONE, LOGIN_SUCCESS, NULL);
+	//printf("RES : %s\n", reply);
+	//
 
-	//char full_path[MAX_PATH];
-	//char *filepath = "\\hiep\\hiepTest.txt";
-	//char *fileName[MAX_PATH];
-	//DWORD length = GetFullPathName(datDir, MAX_PATH, full_path, fileName);
 
-	//if (length == 0) {
-	//	printf("GetFullPathName() failed with error %d\n", GetLastError());
-	//}
-	//else {
-	//	printf("full path: %s\n", full_path);
-	//	printf("file name: %s\n", *fileName);
-	//}
 
-	/*char longPath[MAX_PATH];
-	length = GetLongPathNameA(full_path, longPath, MAX_PATH);
-	if (length == 0) {
-		printf("GetLongPathNameA() failed with error %d\n", GetLastError());
-	}
-	else {
-		printf("long path: %s\n", longPath);
-	}*/
+	SESSION session;
+	session.setUsername("dat");
+	session.setWorkingDir("dat\\test");
+	char path[MAX_PATH] = "smth";
 
-	//CreateDirectory(userName1, NULL);
+	if (checkAccess(&session, path))
+		printf("OKBRO\n");
+
+	strcpy_s(path, MAX_PATH, "..\\..\\smth");
+	if (!checkAccess(&session, path))
+		printf("CHILL\n");
 }

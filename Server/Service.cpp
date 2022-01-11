@@ -49,6 +49,144 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	initMessage(reply, RESPONE, res, NULL);
 }
 
+void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
+	string userName = username;
+	string passWord = password;
+
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	string query = "SELECT * FROM Account where username='" + userName + "'";
+	wstring wstr = converter.from_bytes(query);
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		cout << "Error querying SQL Server" << endl;
+		wcout << wstr;
+		return;
+	}
+
+	SQLCHAR sqlUsername[50];
+	SQLCHAR sqlPassword[50];
+	SQLCHAR sqlStatus[50];
+
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+	}
+	else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
+		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
+		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
+		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+		SQLCloseCursor(gSqlStmtHandle);
+
+		if (passWord == strSqlPassword) {
+			if (strSqlStatus == "0") {
+				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
+				wstr = converter.from_bytes(query);
+				wcout << wstr << endl;
+				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+					cout << "Error querying SQL Server";
+					cout << "\n";
+				}
+				else {
+					//Set user name
+					session->setUsername(userName.c_str());
+					//Set working dir
+					session->setWorkingDir(userName.c_str());
+					initParam(reply, LOGIN_SUCCESS, "Login success");
+				}
+			}
+			else {
+				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
+			}
+		}
+		else {
+			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
+		}
+	}
+	else {
+		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
+		SQLCloseCursor(gSqlStmtHandle);
+	}
+}
+
+void handleLOGOUT(LPSESSION session, char *reply) {
+	string username = session->username;
+
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	string query = "SELECT * FROM Account where username='" + username + "'";
+	wstring wstr = converter.from_bytes(query);
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		cout << "Error querying SQL Server";
+		cout << "\n";
+	}
+
+	SQLCHAR sqlStatus[50];
+
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+		SQLCloseCursor(gSqlStmtHandle);
+
+		if (strSqlStatus == "1") {
+			query = "UPDATE Account SET status = 0 WHERE username='" + username + "';";
+			wstr = converter.from_bytes(query);
+			wcout << wstr << endl;
+			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+				cout << "Error querying SQL Server";
+				cout << "\n";
+			}
+			else {
+				//Reset session
+				session->setUsername("");
+				session->setWorkingDir("");
+
+				initParam(reply, LOGOUT_SUCCESS, "Logout successful");
+			}
+		}
+		else {
+			initParam(reply, NOT_LOGIN, "Logout failed. Didn't log in");
+		}
+	}
+	else {
+		SQLCloseCursor(gSqlStmtHandle);
+	}
+}
+
+void handleREGISTER(char *username, char *password, char* reply) {
+	string userName = username;
+	string passWord = password;
+
+	string query;
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	wstring wstr;
+
+	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
+	wstr = converter.from_bytes(query);
+
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+	}
+	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
+	}
+	else {
+		//Create new dir
+		if (CreateDirectoryA(username, NULL))
+			initParam(reply, REGISTER_SUCCESS, "Register success");
+		else {
+			printf("CreateDirectoryA() failed with error %d\n", GetLastError());
+			initParam(reply, SERVER_FAIL, "CreateDirectoryA() failed");
+		}
+	}
+}
+
 void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	LPFILEOBJ fileobj;
 	HANDLE hFile;
@@ -218,142 +356,23 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	}
 }
 
-void handleREGISTER(char *username, char *password, char* reply) {
-	string userName = username;
-	string passWord = password;
+bool checkAccess(LPSESSION session, char *path) {
+	char rootPath[MAX_PATH];
+	char fullPath[MAX_PATH];
+	char temp[MAX_PATH];
 
-	string query;
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	wstring wstr;
+	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
 
-	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
-	wstr = converter.from_bytes(query);
+	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
+	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
 
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-	}
-	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
-	}
-	else {
-		//Create new dir
-		if(CreateDirectoryA(username, NULL))
-			initParam(reply, REGISTER_SUCCESS, "Register success");
-		else {
-			printf("CreateDirectoryA() failed with error %d\n", GetLastError());
-			initParam(reply, SERVER_FAIL, "CreateDirectoryA() failed");
-		}
-	}
-}
-
-void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
-	string userName = username;
-	string passWord = password;
-
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-	string query = "SELECT * FROM Account where username='" + userName + "'";
-	wstring wstr = converter.from_bytes(query);
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "Error querying SQL Server" << endl;
-		wcout << wstr;
-		return;
+	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
+		strcpy_s(path, MAX_PATH, temp);
+		return TRUE;
 	}
 
-	SQLCHAR sqlUsername[50];
-	SQLCHAR sqlPassword[50];
-	SQLCHAR sqlStatus[50];
-	
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");    
-	} else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
-		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
-		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
-		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
-
-		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
-		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
-
-		SQLCloseCursor(gSqlStmtHandle);
-
-		if (passWord == strSqlPassword) {
-			if (strSqlStatus == "0") {
-				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
-				wstr = converter.from_bytes(query);
-				wcout << wstr << endl;
-				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-					cout << "Error querying SQL Server";
-					cout << "\n";
-				}
-				else {
-					//Set user name
-					session->setUsername(userName.c_str());
-					//Set working dir
-					userName = "\\" + userName;
-					session->setWorkingDir(userName.c_str());
-					initParam(reply, LOGIN_SUCCESS, "Login success");
-				}
-			}
-			else {
-				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
-			}
-		}
-		else {
-			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
-		}
-	}
-	else {
-		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
-		SQLCloseCursor(gSqlStmtHandle);
-	}
-}
-
-void handleLOGOUT(LPSESSION session, char *reply) {
-	string username = session->username;
-
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-	string query = "SELECT * FROM Account where username='" + username + "'";
-	wstring wstr = converter.from_bytes(query);
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "Error querying SQL Server";
-		cout << "\n";
-	}
-
-	SQLCHAR sqlStatus[50];
-
-	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
-		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
-
-		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
-
-		SQLCloseCursor(gSqlStmtHandle);
-
-		if (strSqlStatus == "1") {
-			query = "UPDATE Account SET status = 0 WHERE username='" + username + "';";
-			wstr = converter.from_bytes(query);
-			wcout << wstr << endl;
-			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-				cout << "Error querying SQL Server";
-				cout << "\n";
-			}
-			else {
-				//Reset session
-				session->setUsername("");
-				session->setWorkingDir("");
-
-				initParam(reply, LOGOUT_SUCCESS, "Logout successful");
-			}
-		}
-		else {
-			initParam(reply, NOT_LOGIN, "Logout failed. Didn't log in");
-		}
-	}
-	else {
-		SQLCloseCursor(gSqlStmtHandle);
-	}
+	strcpy_s(path, MAX_PATH, "");
+	return FALSE;
 }
 
 bool connectSQL() {

@@ -223,13 +223,22 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
 	wstr = converter.from_bytes(query);
 
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		//313
-		cout << "Username already exists" << endl;
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+	}
+	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
-		//112
-		cout << "Sign up successful" << endl;;
+		initParam(reply, REGISTER_SUCCESS, "Register success");
+		if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			//313
+			cout << "Username already exists" << endl;
+		}
+		else {
+			//112
+			cout << "Sign up successful" << endl;;
+		}
 	}
 }
 
@@ -251,8 +260,10 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	SQLCHAR sqlUsername[50];
 	SQLCHAR sqlPassword[50];
 	SQLCHAR sqlStatus[50];
-
-	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+	
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");    
+	} else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
 		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
 		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
@@ -272,23 +283,19 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 					cout << "\n";
 				}
 				else {
-					//110
-					cout << "Log in successful!" << endl;
+					initParam(reply, LOGIN_SUCCESS, "Login success");
 				}
 			}
 			else {
-				//311
-				cout << "Already logged in" << endl;
+				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
 			}
 		}
 		else {
-			//314
-			cout << "Wrong password" << endl;
+			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
 		}
 	}
 	else {
-		//312
-		cout << "Username doesn't exist" << endl;
+		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
 		SQLCloseCursor(gSqlStmtHandle);
 	}
 }
@@ -324,13 +331,11 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 				cout << "\n";
 			}
 			else {
-				//111
-				cout << "Log out successful!" << endl;
+				initParam(reply, LOGOUT_SUCCESS, "Logout successful");
 			}
 		}
 		else {
-			//310
-			cout << "Log out failed. Didn't log in" << endl;
+			initParam(reply, NOT_LOGIN, "Logout failed. Didn't log in");
 		}
 	}
 	else {

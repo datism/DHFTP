@@ -10,9 +10,30 @@
 */
 void handleMess(LPSESSION session, char *mess, char *reply);
 
+/**
+ * @brief initialize message
+ *
+ * @param[out] mess
+ *      header <HEAD> p1 <PARA> p2 <END>
+ *      header <HEAD> p1 <END> (if p2 == NULL)
+ *      header <END> (if p1 == NULL && p2 == NULL)                       
+ * @param[in] header 
+ * @param[in] p1 
+ * @param[in] p2 
+ */
 template <typename T, typename X>
 void initMessage(_Inout_ char *mess, _In_ const char *header, _In_opt_ const T p1, _In_opt_ const X p2);
 
+/**
+ * @brief initialize paramaters
+ * 
+ * @param[out] param 
+ *      p1 <PARA> p2
+ *      p1 (if p1 == NULL)
+ *      "" (if p1 == NULL && p2 == NULL) 
+ * @param[in] p1 
+ * @param[in] p2 
+ */
 template <typename T, typename X>
 void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
 

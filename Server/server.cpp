@@ -18,6 +18,9 @@ SQLHANDLE gSqlStmtHandle;
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID);
 
 int main(int argc, char *argv[]) {
+	if (!connectSQL())
+		return 1;
+
 	WSADATA wsaData;
 	if (WSAStartup((2, 2), &wsaData) != 0) {
 		printf("WSAStartup() failed with error %d\n", GetLastError());

@@ -223,13 +223,22 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
 	wstr = converter.from_bytes(query);
 
-	if (username.size() == 0 || password.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");    
-	} else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+	}
+	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
 		initParam(reply, REGISTER_SUCCESS, "Register success");
+		if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			//313
+			cout << "Username already exists" << endl;
+		}
+		else {
+			//112
+			cout << "Sign up successful" << endl;;
+		}
 	}
 }
 
@@ -252,7 +261,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	SQLCHAR sqlPassword[50];
 	SQLCHAR sqlStatus[50];
 	
-	if (username.size() == 0 || password.size() == 0) {
+	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");    
 	} else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);

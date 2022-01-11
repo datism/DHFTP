@@ -1,11 +1,17 @@
 #pragma once
-
 #include <WinSock2.h>
 
-typedef struct {
+typedef struct FILEOBJ *LPFILEOBJ;
+
+typedef struct SESSION {
 	SOCKET cmdSock;
-	//SOCKET fileSock;
 	char *username;
+
+	FILEOBJ *fileobj;
+
+	void closeFile();
 } SESSION, *LPSESSION;
 
-void freeSession(LPSESSION);
+_Ret_maybenull_ LPSESSION getSession();
+void freeSession(_In_ LPSESSION);
+

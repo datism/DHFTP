@@ -60,36 +60,36 @@ enum REPLY_CODE {
 	SERVER_FAIL = 331
 };
 
-//template <typename T, typename X>
-//void initParam(char *param, const T p1, const X p2);
-//
-//template <typename T, typename X>
-//void initMessage(char *mess, const char *header, const T p1, const X p2) {
-//	char param[BUFFSIZE];
-//
-//	initParam(param, p1, p2);
-//
-//	if (strlen(param) == 0)
-//		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-//	else
-//		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
-//}
-//
-//template <typename T, typename X>
-//void initParam(char *param, const T p1, const X p2) {
-//	strcpy_s(param, BUFFSIZE, "");
-//	std::ostringstream sstr;
-//
-//	if (p1 == NULL)
-//		return;
-//
-//	if (p2 == NULL)
-//		sstr << p1;
-//	else
-//		sstr << p1 << PARA_DELIMITER << p2;
-//
-//	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
-//}
+template <typename T, typename X>
+void initParam(char *param, const T p1, const X p2);
+
+template <typename T, typename X>
+void initMessage(char *mess, const char *header, const T p1, const X p2) {
+	char param[BUFFSIZE];
+
+	initParam(param, p1, p2);
+
+	if (strlen(param) == 0)
+		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
+	else
+		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+}
+
+template <typename T, typename X>
+void initParam(char *param, const T p1, const X p2) {
+	strcpy_s(param, BUFFSIZE, "");
+	std::ostringstream sstr;
+
+	if (p1 == NULL)
+		return;
+
+	if (p2 == NULL)
+		sstr << p1;
+	else
+		sstr << p1 << PARA_DELIMITER << p2;
+
+	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
+}
 
 //char *dat = "dat";
 //char *hiep = "hiep";

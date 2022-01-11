@@ -1,11 +1,10 @@
-// crt_strtok_s.c
-// In this program, a loop uses strtok_s
-// to print all the tokens (separated by commas
-// or blanks) in two strings at the same time.
-
+#include <Windows.h>
+#include <fileapi.h>
 #include <string.h>
 #include <string>
+#include <sstream>
 #include <stdio.h>
+
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
@@ -61,32 +60,40 @@ enum REPLY_CODE {
 	SERVER_FAIL = 331
 };
 
-void initParam(char *param, const char *p1, const char *p2);
+//template <typename T, typename X>
+//void initParam(char *param, const T p1, const X p2);
+//
+//template <typename T, typename X>
+//void initMessage(char *mess, const char *header, const T p1, const X p2) {
+//	char param[BUFFSIZE];
+//
+//	initParam(param, p1, p2);
+//
+//	if (strlen(param) == 0)
+//		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
+//	else
+//		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+//}
+//
+//template <typename T, typename X>
+//void initParam(char *param, const T p1, const X p2) {
+//	strcpy_s(param, BUFFSIZE, "");
+//	std::ostringstream sstr;
+//
+//	if (p1 == NULL)
+//		return;
+//
+//	if (p2 == NULL)
+//		sstr << p1;
+//	else
+//		sstr << p1 << PARA_DELIMITER << p2;
+//
+//	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
+//}
 
-void initMessage(char *mess, const char *header, const char *p1, const char *p2) {
-	char param[BUFFSIZE];
+//char *dat = "dat";
+//char *hiep = "hiep";
 
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
-}
-
-void initParam(char *param, const char *p1, const char *p2) {
-	*param = 0;
-
-	if (p1 == NULL)
-		return;
-
-	if (p2 == NULL) {
-		strcpy_s(param, BUFFSIZE, p1);
-		return;
-	}
-
-	sprintf_s(param, BUFFSIZE, "%s%s%s", p1, PARA_DELIMITER, p2);
-}
 
 int main() {
 	char mess1[BUFFSIZE], mess2[BUFFSIZE], mess3[BUFFSIZE], reply[BUFFSIZE];
@@ -97,7 +104,37 @@ int main() {
 	initMessage(mess3, "abc", NULL, NULL);
 	printf("Mess3 : %s\n", mess3);
 
-	std::string res = std::to_string(LOGIN_SUCCESS);
-	initMessage(reply, RESPONE, res.c_str(), NULL);
+	//std::string res = std::to_string(LOGIN_SUCCESS);
+	initMessage(reply, RESPONE, LOGIN_SUCCESS, NULL);
 	printf("RES : %s\n", reply);
+	
+	/*char *datDir = "\\dat";*/
+	/*if (SetCurrentDirectory(datDir)) {
+		printf("SetCurrentDirectory() failed with error %d\n", GetLastError());
+		return 1;
+	}*/
+
+	//char full_path[MAX_PATH];
+	//char *filepath = "\\hiep\\hiepTest.txt";
+	//char *fileName[MAX_PATH];
+	//DWORD length = GetFullPathName(datDir, MAX_PATH, full_path, fileName);
+
+	//if (length == 0) {
+	//	printf("GetFullPathName() failed with error %d\n", GetLastError());
+	//}
+	//else {
+	//	printf("full path: %s\n", full_path);
+	//	printf("file name: %s\n", *fileName);
+	//}
+
+	/*char longPath[MAX_PATH];
+	length = GetLongPathNameA(full_path, longPath, MAX_PATH);
+	if (length == 0) {
+		printf("GetLongPathNameA() failed with error %d\n", GetLastError());
+	}
+	else {
+		printf("long path: %s\n", longPath);
+	}*/
+
+	//CreateDirectory(userName1, NULL);
 }

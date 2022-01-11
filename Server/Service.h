@@ -9,8 +9,12 @@
 * @param[out] reply reply to client
 */
 void handleMess(LPSESSION session, char *mess, char *reply);
-void initMessage(_Inout_ char *mess, _In_ const char *header, _In_opt_ const char *p1, _In_opt_ const char *p2);
-void initParam(_Inout_ char *param, _In_opt_ const char *p1, _In_opt_ const char *p2);
+
+template <typename T, typename X>
+void initMessage(_Inout_ char *mess, _In_ const char *header, _In_opt_ const T p1, _In_opt_ const X p2);
+
+template <typename T, typename X>
+void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
 
 /**
 * @brief parse message into command and paramaters

@@ -24,8 +24,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-
 	// Step 1: Setup an I/O completion port
 	if ((gCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0)) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());

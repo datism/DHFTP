@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <sqlext.h>
 #include <sqltypes.h>
 #include <sql.h>
@@ -24,7 +25,8 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	if (!strcmp(cmd, STORE)) {
 		LONG64 size = _atoi64(p2);
 		if (strlen(p1) == 0 || strlen(p2) == 0 || size == 0)
-			sprintf_s(res, BUFFSIZE, "%d%s%s", WRONG_SYNTAX, PARA_DELIMITER, "wrong parameter");
+			initParam(res, WRONG_SYNTAX, "Wrong parameter");
+			//sprintf_s(res, BUFFSIZE, "%d%s%s", WRONG_SYNTAX, PARA_DELIMITER, "wrong parameter");
 		else handleSTORE(session, p1, size, res);
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
@@ -34,9 +36,11 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 		handleRECEIVE(session, res);
 	}
 		
-	else sprintf_s(res, BUFFSIZE, "%d%s%s", WRONG_SYNTAX, PARA_DELIMITER, "wrong header");
+	else 
+		initParam(res, WRONG_SYNTAX, "Wrong header");
 
-	sprintf_s(reply, BUFFSIZE, "%s%s%s%s", RESPONE, HEADER_DELIMITER, res, ENDING_DELIMITER);
+	initMessage(reply, RESPONE, res, NULL);
+	//sprintf_s(reply, BUFFSIZE, "%s%s%s%s", RESPONE, HEADER_DELIMITER, res, ENDING_DELIMITER);
 }
 
 void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
@@ -52,7 +56,8 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
-			sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "File not found");
+			initParam(reply, FILE_ALREADY_EXIST, "File not found");
+			//sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "File not found");
 		return;
 	}
 
@@ -64,13 +69,15 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 
 	session->fileobj = fileobj;
 
-	sprintf_s(reply, BUFFSIZE, "%d%s%lld", RETRIEVE_SUCCESS, PARA_DELIMITER, fileSize.QuadPart);
+	initParam(reply, RETRIEVE_SUCCESS, fileSize.QuadPart);
+	//sprintf_s(reply, BUFFSIZE, "%d%s%lld", RETRIEVE_SUCCESS, PARA_DELIMITER, fileSize.QuadPart);
 }
 
 void handleRECEIVE(LPSESSION session, char * reply) {
 	LPIO_OBJ sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
 	if (session->fileobj == NULL) {
-		sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "Session fileobj null");
+		initParam(reply, SERVER_FAIL, "Session fileobj null");
+		//sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "Session fileobj null");
 		return;
 	}
 
@@ -81,8 +88,7 @@ void handleRECEIVE(LPSESSION session, char * reply) {
 			printf("TransmitFile failed with error %d\n", error);
 	}
 
-	std::string resCode = std::to_string(FINISH_SEND);
-	initParam(reply, resCode.c_str(), "Send file sucessful");
+	initParam(reply, FINISH_SEND, "Send file sucessful");
 }
 
 void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *reply) {
@@ -97,15 +103,19 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_EXISTS)
-			sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "file already exsit");
+			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
+			//sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "File already exsit");
 		return;
 	}
 
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)&(session->cmdSock), 0) == NULL) {
-		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		FreeFileObj(fileobj);
-		sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "CreateIoCompletionPort() failed");
+
+		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+
+		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
+		//sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "CreateIoCompletionPort() failed");
 		return;
 	}
 
@@ -121,8 +131,10 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 		recvFObj->sequence = i;
 
 		if (!PostRecv(session->cmdSock, recvFObj)) {
-			sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			session->closeFile();
+			
+			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
+			//sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			return;
 		}
 
@@ -134,15 +146,18 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 		recvFObj->sequence = n;
 
 		if (!PostRecv(session->cmdSock, recvFObj)) {
-			sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			session->closeFile();
+
+			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
+			//sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			return;
 		}
 
 		//InterlockedIncrement(&(fileobj->pending));
 	}
 
-	sprintf_s(reply, BUFFSIZE, "%d%s%s", STORE_SUCCESS, PARA_DELIMITER, "Can start sending file");
+	initParam(reply, STORE_SUCCESS, "Can start sending file");
+	//sprintf_s(reply, BUFFSIZE, "%d%s%s", STORE_SUCCESS, PARA_DELIMITER, "Can start sending file");
 }
 
 void handleRENAME(LPSESSION session, char *oldname, char *newname, char *reply) {
@@ -171,31 +186,6 @@ void handlePRINTWDIR(LPSESSION session, char *reply) {
 
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 
-}
-
-void initMessage(char *mess, const char *header, const char *p1, const char *p2) {
-	char param[BUFFSIZE];
-
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
-}
-
-void initParam(char *param, const char *p1, const char *p2) {
-	*param = 0;
-
-	if (p1 == NULL)
-		return;
-
-	if (p2 == NULL) {
-		strcpy_s(param, BUFFSIZE, p1);
-		return;
-	}
-
-	sprintf_s(param, BUFFSIZE, "%s%s%s", p1, PARA_DELIMITER, p2);
 }
 
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
@@ -399,4 +389,32 @@ bool connectSQL() {
 	}
 
 	return TRUE;
+}
+
+template <typename T, typename X>
+void initMessage(char *mess, const char *header, const T p1, const X p2) {
+	char param[BUFFSIZE];
+
+	initParam(param, p1, p2);
+
+	if (strlen(param) == 0)
+		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
+	else
+		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+}
+
+template <typename T, typename X>
+void initParam(char *param, const T p1, const X p2) {
+	strcpy_s(param, BUFFSIZE, "");
+	std::ostringstream sstr;
+
+	if (p1 == NULL)
+		return;
+
+	if (p2 == NULL)
+		sstr << p1;
+	else
+		sstr << p1 << PARA_DELIMITER << p2;
+
+	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
 }

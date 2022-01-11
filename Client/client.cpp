@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
 		chooseService(session, buff);
 		blockSend(session->sock, buff);
 
-		*buff = 0;
+		strcpy_s(buff, BUFFSIZE, "");
 		
 		do {
 			bytes = blockRecv(session->sock, buff, BUFFSIZE);

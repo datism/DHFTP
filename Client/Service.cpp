@@ -1,5 +1,6 @@
 #include "Service.h"
 #include <stdio.h>
+#include <sstream>
 #include <string>
 #include "Envar.h"
 #include "Io.h"
@@ -52,7 +53,7 @@ bool RetrieveRequest(LpSession session, char *sendBuff, const char *serverFile, 
 }
 
 void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
-	strcpy_s(sendBuff, BUFFSIZE, 0);
+	strcpy_s(sendBuff, BUFFSIZE, "");
 
 	printf("\nChoose service\n");
 	printf("1.LOGIN\n");

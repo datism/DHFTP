@@ -22,11 +22,19 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
     //Parse message
 	parseMess(mess, cmd, p1, p2);
 
-	if (!strcmp(cmd, STORE)) {
+	if (!strcmp(cmd, LOGIN)) {
+		handleLOGIN(session, p1, p2, res);
+	}
+	else if (!strcmp(cmd, LOGOUT)) {
+		handleLOGOUT(session, res);
+	}
+	else if (!strcmp(cmd, REGISTER)) {
+		handleREGISTER(p1, p2, res);
+	}
+	else if (!strcmp(cmd, STORE)) {
 		LONG64 size = _atoi64(p2);
 		if (strlen(p1) == 0 || strlen(p2) == 0 || size == 0)
 			initParam(res, WRONG_SYNTAX, "Wrong parameter");
-			//sprintf_s(res, BUFFSIZE, "%d%s%s", WRONG_SYNTAX, PARA_DELIMITER, "wrong parameter");
 		else handleSTORE(session, p1, size, res);
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
@@ -35,12 +43,10 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	else if (!strcmp(cmd, RECEIVE)) {
 		handleRECEIVE(session, res);
 	}
-		
 	else 
 		initParam(res, WRONG_SYNTAX, "Wrong header");
 
 	initMessage(reply, RESPONE, res, NULL);
-	//sprintf_s(reply, BUFFSIZE, "%s%s%s%s", RESPONE, HEADER_DELIMITER, res, ENDING_DELIMITER);
 }
 
 void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
@@ -230,14 +236,12 @@ void handleREGISTER(char *username, char *password, char* reply) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
-		initParam(reply, REGISTER_SUCCESS, "Register success");
-		if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-			//313
-			cout << "Username already exists" << endl;
-		}
+		//Create new dir
+		if(CreateDirectoryA(username, NULL))
+			initParam(reply, REGISTER_SUCCESS, "Register success");
 		else {
-			//112
-			cout << "Sign up successful" << endl;;
+			printf("CreateDirectoryA() failed with error %d\n", GetLastError());
+			initParam(reply, SERVER_FAIL, "CreateDirectoryA() failed");
 		}
 	}
 }
@@ -283,6 +287,11 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 					cout << "\n";
 				}
 				else {
+					//Set user name
+					session->setUsername(userName.c_str());
+					//Set working dir
+					userName = "\\" + userName;
+					session->setWorkingDir(userName.c_str());
 					initParam(reply, LOGIN_SUCCESS, "Login success");
 				}
 			}
@@ -331,6 +340,10 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 				cout << "\n";
 			}
 			else {
+				//Reset session
+				session->setUsername("");
+				session->setWorkingDir("");
+
 				initParam(reply, LOGOUT_SUCCESS, "Logout successful");
 			}
 		}
@@ -421,5 +434,7 @@ void initParam(char *param, const T p1, const X p2) {
 	else
 		sstr << p1 << PARA_DELIMITER << p2;
 
-	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
+	string str = sstr.str();
+	const char *cstr = str.c_str();
+	strcpy_s(param, BUFFSIZE, cstr);
 }

@@ -90,7 +90,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply);
 
 void handleRECEIVE(LPSESSION session, char *reply);
 
-void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *reply);
+void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
 
 /**
 * @brief

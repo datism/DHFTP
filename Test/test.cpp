@@ -146,12 +146,13 @@ int main() {
 
 	SESSION session;
 	session.setUsername("dat");
-	session.setWorkingDir("dat\\test");
+	session.setWorkingDir("dat");
 	char path[MAX_PATH] = "smth";
 
 	if (checkAccess(&session, path))
-		printf("OKBRO\n");
-
+		printf("%s\n", path);
+	if (!CreateDirectoryA(path, NULL))
+		printf("CreateDirectoryA() failed with error %d\n", GetLastError());
 	strcpy_s(path, MAX_PATH, "..\\..\\smth");
 	if (!checkAccess(&session, path))
 		printf("CHILL\n");

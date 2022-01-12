@@ -32,10 +32,7 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 		handleREGISTER(p1, p2, res);
 	}
 	else if (!strcmp(cmd, STORE)) {
-		LONG64 size = _atoi64(p2);
-		if (strlen(p1) == 0 || strlen(p2) == 0 || size == 0)
-			initParam(res, WRONG_SYNTAX, "Wrong parameter");
-		else handleSTORE(session, p1, size, res);
+		handleSTORE(session, p1, p2, res);
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
 		handleRETRIVE(session, p1, res);
@@ -192,6 +189,17 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
 
+	//Check param
+	if (strlen(filename) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
+
+	//Check access and get full path
+	if (!checkAccess(session, filename)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this file");
+		return;
+	}
 
 	//Open existing file
 	hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
@@ -200,8 +208,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
-			initParam(reply, FILE_ALREADY_EXIST, "File not found");
-			//sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "File not found");
+			initParam(reply, FILE_ALREADY_EXIST, "File already exist");
 		return;
 	}
 
@@ -214,14 +221,12 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	session->fileobj = fileobj;
 
 	initParam(reply, RETRIEVE_SUCCESS, fileSize.QuadPart);
-	//sprintf_s(reply, BUFFSIZE, "%d%s%lld", RETRIEVE_SUCCESS, PARA_DELIMITER, fileSize.QuadPart);
 }
 
 void handleRECEIVE(LPSESSION session, char * reply) {
 	LPIO_OBJ sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
 	if (session->fileobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Session fileobj null");
-		//sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "Session fileobj null");
 		return;
 	}
 
@@ -235,9 +240,23 @@ void handleRECEIVE(LPSESSION session, char * reply) {
 	initParam(reply, FINISH_SEND, "Send file sucessful");
 }
 
-void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *reply) {
+void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
 	char newfile[BUFFSIZE];
 	LPFILEOBJ fileobj;
+	LONG64 size;
+
+	//Check param
+	size = _atoi64(fileSize);
+	if (strlen(filename) == 0 || strlen(fileSize) == 0 || size == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
+
+	//Check access and get full path
+	if (!checkAccess(session, filename)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this file");
+		return;
+	}
 
 	//Create new file
 	sprintf_s(newfile, BUFFSIZE, "%s-%d.txt", filename, session->cmdSock);
@@ -248,27 +267,25 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_EXISTS)
 			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
-			//sprintf_s(reply, BUFFSIZE, "%d%s%s", FILE_ALREADY_EXIST, PARA_DELIMITER, "File already exsit");
+		else if (error == ERROR_PATH_NOT_FOUND)
+			initParam(reply, FILE_NOT_EXIST, "Path not found");
 		return;
 	}
 
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)&(session->cmdSock), 0) == NULL) {
 		FreeFileObj(fileobj);
-
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
-
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
-		//sprintf_s(reply, BUFFSIZE, "%d%s%s", SERVER_FAIL, PARA_DELIMITER, "CreateIoCompletionPort() failed");
 		return;
 	}
 
-	fileobj = GetFileObj(hFile, fileSize);
+	fileobj = GetFileObj(hFile, size);
 	session->fileobj = fileobj;
 
 	//Number of recveive file
-	DWORD n = fileSize / BUFFSIZE;
-	DWORD remain = fileSize % BUFFSIZE;
+	DWORD n = size / BUFFSIZE;
+	DWORD remain = size % BUFFSIZE;
 
 	for (int i = 0; i < n; ++i) {
 		LPIO_OBJ recvFObj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
@@ -276,9 +293,7 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 
 		if (!PostRecv(session->cmdSock, recvFObj)) {
 			session->closeFile();
-			
 			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			//sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			return;
 		}
 
@@ -291,9 +306,7 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 
 		if (!PostRecv(session->cmdSock, recvFObj)) {
 			session->closeFile();
-
 			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			//sprintf_s(reply, BUFFSIZE, "%d%s%s", TRANSMIT_FAIL, PARA_DELIMITER, "Receive file fail");
 			return;
 		}
 
@@ -301,7 +314,6 @@ void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *repl
 	}
 
 	initParam(reply, STORE_SUCCESS, "Can start sending file");
-	//sprintf_s(reply, BUFFSIZE, "%d%s%s", STORE_SUCCESS, PARA_DELIMITER, "Can start sending file");
 }
 
 void handleRENAME(LPSESSION session, char *oldname, char *newname, char *reply) {

@@ -368,25 +368,6 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	}
 }
 
-bool checkAccess(LPSESSION session, char *path) {
-	char rootPath[MAX_PATH];
-	char fullPath[MAX_PATH];
-	char temp[MAX_PATH];
-
-	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
-
-	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
-	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
-
-	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
-		strcpy_s(path, MAX_PATH, temp);
-		return TRUE;
-	}
-
-	strcpy_s(path, MAX_PATH, "");
-	return FALSE;
-}
-
 bool connectSQL() {
 	SQLHANDLE sqlConnHandle;
 	SQLHANDLE sqlEnvHandle;
@@ -438,6 +419,31 @@ bool connectSQL() {
 	}
 
 	return TRUE;
+}
+
+bool checkName(char *name) {
+	if (NULL == strchr(name, '\\'))
+		return TRUE;
+	return FALSE;
+}
+
+bool checkAccess(LPSESSION session, char *path) {
+	char rootPath[MAX_PATH];
+	char fullPath[MAX_PATH];
+	char temp[MAX_PATH];
+
+	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
+
+	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
+	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
+
+	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
+		strcpy_s(path, MAX_PATH, temp);
+		return TRUE;
+	}
+
+	strcpy_s(path, MAX_PATH, "");
+	return FALSE;
 }
 
 template <typename T, typename X>

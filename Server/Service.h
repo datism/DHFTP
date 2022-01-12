@@ -155,3 +155,5 @@ void handlePRINTWDIR(LPSESSION session, char *reply);
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 
 bool connectSQL();
+
+bool checkName(char * name);

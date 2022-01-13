@@ -316,32 +316,162 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	initParam(reply, STORE_SUCCESS, "Can start sending file");
 }
 
-void handleRENAME(LPSESSION session, char *oldname, char *newname, char *reply) {
+void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {	
+	if (strlen(pathname) == 0 || strlen(newname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this file");
+		return;
+	}
+
+	string fullOldName = pathname;
+	string folderName = fullOldName.substr(0, fullOldName.rfind("\\"));
+
+	string newName = newname;
+	string fullNewName = folderName + "\\" + newName;
+
+	if (MoveFileA(fullOldName.c_str(), fullNewName.c_str())) {
+		initParam(reply, RENAME_SUCCESS, "Rename successful");
+	}
+	else {
+		if (GetLastError() == ERROR_ALREADY_EXISTS)
+			initParam(reply, FILE_ALREADY_EXIST, "Rename failed. Name already exists");
+		else
+			cout << "Rename failed with error " << GetLastError();
+	}
 }
 
 void handleDELETE(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this file");
+		return;
+	}
+
+	if (DeleteFileA(pathname)) {
+		initParam(reply, DELETE_SUCCESS, "File deleted successfully");
+	}
+	else {
+		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+			initParam(reply, FILE_NOT_EXIST, "File doesn't exist");
+		}
+		else {
+			cout << "Delete file failed with error " << GetLastError();
+		}
+	}
 }
 
 void handleMAKEDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
+		return;
+	}
+
+	if (CreateDirectoryA(pathname, NULL)) {
+		initParam(reply, MAKEDIR_SUCCESS, "Directory created successfully");
+	}
+	else {
+		if (GetLastError() == ERROR_PATH_NOT_FOUND)
+			initParam(reply, FILE_NOT_EXIST, "Directory failed. Path not found");
+		else if (GetLastError() == ERROR_ALREADY_EXISTS)
+			initParam(reply, FILE_ALREADY_EXIST, "Directory failed. Path already exists");
+		else
+			cout << "Directory failed with error " << GetLastError();
+	}
 }
 
 void handleREMOVEDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
+		return;
+	}
+
+	if (RemoveDirectoryA(pathname)) {
+		initParam(reply, REMOVEDIR_SUCCESS, "Directory created successfully");
+	}
+	else {
+		if (GetLastError() == ERROR_DIR_NOT_EMPTY) {
+			initParam(reply, DIR_NOT_EMPTY, "Remove directory failed. Not empty");
+		}
+		else if (GetLastError() == ERROR_FILE_NOT_FOUND || GetLastError() == ERROR_PATH_NOT_FOUND) {
+			initParam(reply, FILE_NOT_EXIST, "Remove directory failed. Path not found");
+		}
+		else
+			cout << "Remove directory failed with error: " << GetLastError();
+	}
 }
 
 void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
+		return;
+	}
+
+	session->setWorkingDir(pathname);
+	initParam(reply, CHANGEWDIR_SUCCESS, "Directory changed successfully");
 }
 
 void handlePRINTWDIR(LPSESSION session, char *reply) {
-
+	initParam(reply, PRINTWDIR_SUCCESS, session->workingDir);
 }
 
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
+		return;
+	}
+
+	string pathName = pathname;
+	pathName += "\\\*";
+	string names;
+
+	WIN32_FIND_DATAA data;
+	HANDLE hFind = FindFirstFileA(pathName.c_str(), &data);     
+
+	if (hFind != INVALID_HANDLE_VALUE) {
+		do {
+			string name = data.cFileName;
+			if (name != "." && name != "..") {
+				name += "\n";
+				names += name;
+			}
+		} while (FindNextFileA(hFind, &data));
+		
+		initParam(reply, LIST_SUCCESS, names.c_str());
+	}
+	else {
+		initParam(reply, FILE_NOT_EXIST, "List directory failed. Invalid path");
+	}
+
+	FindClose(hFind);
 }
 
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {

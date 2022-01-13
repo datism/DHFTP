@@ -119,7 +119,7 @@ bool checkAccess(LPSESSION session, char *path) {
 	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
 
 	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
-		strcpy_s(path, MAX_PATH, temp);
+		strcpy_s(path, MAX_PATH, fullPath);
 		return TRUE;
 	}
 

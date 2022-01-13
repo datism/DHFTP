@@ -52,6 +52,20 @@ int main(int argc, char* argv[]) {
 	session = getSession();
 	session->sock = cmdSock;
 
+	printf("1.LOGIN\n");
+	printf("2.LOGOUT\n");
+	printf("3.REGISTER\n");
+	printf("4.STORE FILE\n");
+	printf("5.RETRIEVE FILE\n");
+	printf("6.RENAME FILE\n");
+	printf("7.DELETE FILE\n");
+	printf("8.MAKE DIR\n");
+	printf("9.REMOVE DIR\n");
+	printf("10.CHANGE WROKING DIR\n");
+	printf("11.PRINT WORKING DIR\n");
+	printf("12.LIST DIR\n\n");
+
+
 	while (1) {
 		chooseService(session, buff);
 		blockSend(session->sock, buff);

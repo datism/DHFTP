@@ -15,37 +15,6 @@
 
 using namespace std;
 
-void handleMess(LPSESSION session, char *mess, char *reply) {
-    char cmd[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
-	char res[BUFFSIZE];
-
-    //Parse message
-	parseMess(mess, cmd, p1, p2);
-
-	if (!strcmp(cmd, LOGIN)) {
-		handleLOGIN(session, p1, p2, res);
-	}
-	else if (!strcmp(cmd, LOGOUT)) {
-		handleLOGOUT(session, res);
-	}
-	else if (!strcmp(cmd, REGISTER)) {
-		handleREGISTER(p1, p2, res);
-	}
-	else if (!strcmp(cmd, STORE)) {
-		handleSTORE(session, p1, p2, res);
-	}
-	else if (!strcmp(cmd, RETRIEVE)) {
-		handleRETRIVE(session, p1, res);
-	}
-	else if (!strcmp(cmd, RECEIVE)) {
-		handleRECEIVE(session, res);
-	}
-	else 
-		initParam(res, WRONG_SYNTAX, "Wrong header");
-
-	initMessage(reply, RESPONE, res, NULL);
-}
-
 void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
 	string userName = username;
 	string passWord = password;
@@ -111,6 +80,11 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 
 void handleLOGOUT(LPSESSION session, char *reply) {
 	string username = session->username;
+
+	if (username.length() == 0) {
+		initParam(reply, NOT_LOGIN, "Logout failed. Didn't log in");
+		return;
+	}
 
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
@@ -496,6 +470,58 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 			strcpy_s(p2, BUFFSIZE, strP2.c_str());
 		}
 	}
+}
+
+void handleMess(LPSESSION session, char *mess, char *reply) {
+	char cmd[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
+	char res[BUFFSIZE];
+
+	//Parse message
+	parseMess(mess, cmd, p1, p2);
+
+	if (!strcmp(cmd, LOGIN)) {
+		handleLOGIN(session, p1, p2, res);
+	}
+	else if (!strcmp(cmd, LOGOUT)) {
+		handleLOGOUT(session, res);
+	}
+	else if (!strcmp(cmd, REGISTER)) {
+		handleREGISTER(p1, p2, res);
+	}
+	else if (!strcmp(cmd, STORE)) {
+		handleSTORE(session, p1, p2, res);
+	}
+	else if (!strcmp(cmd, RETRIEVE)) {
+		handleRETRIVE(session, p1, res);
+	}
+	else if (!strcmp(cmd, RECEIVE)) {
+		handleRECEIVE(session, res);
+	}
+	else if (!strcmp(cmd, RENAME)) {
+		handleRENAME(session, p1, p2, res);
+	}
+	else if (!strcmp(cmd, DELETEFILE)) {
+		handleDELETE(session, p1, res);
+	}
+	else if (!strcmp(cmd, MAKEDIR)) {
+		handleMAKEDIR(session, p1, res);
+	}
+	else if (!strcmp(cmd, REMOVEDIR)) {
+		handleREMOVEDIR(session, p1, res);
+	}
+	else if (!strcmp(cmd, CHANGEWDIR)) {
+		handleCHANGEWDIR(session, p1, res);
+	}
+	else if (!strcmp(cmd, PRINTWDIR)) {
+		handlePRINTWDIR(session, res);
+	}
+	else if (!strcmp(cmd, LISTDIR)) {
+		handleLISTDIR(session, p1, res);
+	}
+	else
+		initParam(res, WRONG_SYNTAX, "Wrong header");
+
+	initMessage(reply, RESPONE, res, NULL);
 }
 
 bool connectSQL() {

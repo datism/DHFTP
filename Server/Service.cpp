@@ -283,7 +283,39 @@ void handlePRINTWDIR(LPSESSION session, char *reply) {
 }
 
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(pathname) == 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
 
+	if (!checkAccess(session, pathname)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
+		return;
+	}
+
+	string pathName = pathname;
+	pathName += "\\\*";
+	string names;
+
+	WIN32_FIND_DATAA data;
+	HANDLE hFind = FindFirstFileA(pathName.c_str(), &data);     
+
+	if (hFind != INVALID_HANDLE_VALUE) {
+		do {
+			string name = data.cFileName;
+			if (name != "." && name != "..") {
+				name += "\n";
+				names += name;
+			}
+		} while (FindNextFileA(hFind, &data));
+		
+		initParam(reply, LIST_SUCCESS, names.c_str());
+	}
+	else {
+		initParam(reply, FILE_NOT_EXIST, "List directory failed. Invalid path");
+	}
+
+	FindClose(hFind);
 }
 
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {

@@ -5,6 +5,7 @@
 void parseReply(const char *reply, char *cmd, char *p1, char *p2);
 
 void chooseService(_Inout_ LpSession session, _Inout_ char *sendBuff);
+
 bool handleReply(_Inout_ LpSession session, _In_ const char *reply);
 
 void LoginRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ const char * password);

@@ -61,6 +61,13 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	printf("3.REGISTER\n");
 	printf("4.STORE FILE\n");
 	printf("5.RETRIEVE FILE\n");
+	printf("6.RENAME FILE\n");
+	printf("7.DELETE FILE\n");
+	printf("8.MAKE DIR\n");
+	printf("9.REMOVE DIR\n");
+	printf("10.CHANGE WROKING DIR\n");
+	printf("11.PRINT WORKING DIR\n");
+	printf("12.LIST DIR");
 
 	int choice;
 	char p1[BUFFSIZE], p2[BUFFSIZE];
@@ -168,6 +175,31 @@ void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
 	}
 }
 
+void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
+	std::string strMess = reply;
+	std::string strCmd, strP1, strP2;
+	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER), spPos = strMess.find(PARA_DELIMITER);
+	if (crPos == -1) {
+		std::string strCmd = strMess.substr(0, lenStr);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+		if (spPos == -1) {
+			strP1 = strMess.substr(crPos + 1, lenStr - crPos - 1);
+			strcpy_s(p1, BUFFSIZE, strP1.c_str());
+		}
+		else {
+			strP1 = strMess.substr(crPos + 1, spPos - crPos - 1);
+			strcpy_s(p1, BUFFSIZE, strP1.c_str());
+			strP2 = strMess.substr(spPos + 1, lenStr - spPos - 1);
+			strcpy_s(p2, BUFFSIZE, strP2.c_str());
+		}
+	}
+}
+
+
 template <typename T, typename X>
 void initMessage(char *mess, const char *header, const T p1, const X p2) {
 	char param[BUFFSIZE];
@@ -194,4 +226,20 @@ void initParam(char *param, const T p1, const X p2) {
 		sstr << p1 << PARA_DELIMITER << p2;
 
 	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
+}
+
+void usage() {
+	printf("Command are:\n");
+	printf("login <username> <password>\n");
+	printf("logout <username>\n");
+	printf("reg <username> <password>\n");
+	printf("get <path-to-file> <save-as>\n");
+	printf("put <path-to-file> <save-as>\n");
+	printf("rn <path-to-file> <new-name>\n");
+	printf("del <path-to-file>\n");
+	printf("mkdr <path-to-dir>\n");
+	printf("rmdr <path-to-dir>\n");
+	printf("cd <path-to-dir>\n");
+	printf("pwd <path-to-dir>\n");
+	printf("ls <path-to-dir>\n");
 }

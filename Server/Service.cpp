@@ -345,6 +345,11 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 void handleREGISTER(char *username, char *password, char* reply) {
 	string userName = username;
 	string passWord = password;
+	
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
 
 	string query;
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -353,10 +358,8 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
 	wstr = converter.from_bytes(query);
 
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-	}
-	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
@@ -375,7 +378,15 @@ void handleREGISTER(char *username, char *password, char* reply) {
 void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
 	string userName = username;
 	string passWord = password;
+	
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
 
+	SQLCHAR sqlUsername[50];
+	SQLCHAR sqlPassword[50];
+	SQLCHAR sqlStatus[50];
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 	string query = "SELECT * FROM Account where username='" + userName + "'";
@@ -386,14 +397,8 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		wcout << wstr;
 		return;
 	}
-
-	SQLCHAR sqlUsername[50];
-	SQLCHAR sqlPassword[50];
-	SQLCHAR sqlStatus[50];
-	
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");    
-	} else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+		   
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
 		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
 		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);

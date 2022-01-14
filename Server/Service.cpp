@@ -522,19 +522,92 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	}
 }
 
+
+void handleREGISTER(char *username, char *password, char* reply) {
+	string userName = username;
+	string passWord = password;
+	
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
+	string query;
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	wstring wstr;
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
+}
+
+void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
+	string userName = username;
+	string passWord = password;
+	
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
+	SQLCHAR sqlUsername[50];
+	SQLCHAR sqlPassword[50];
+	SQLCHAR sqlStatus[50];
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	string query = "SELECT * FROM Account where username='" + userName + "'";
+	wstring wstr = converter.from_bytes(query);
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		cout << "Error querying SQL Server" << endl;
+		wcout << wstr;
+		return;
+	}
+		   
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
+		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
+		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
+
+		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
+		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
+
+		SQLCloseCursor(gSqlStmtHandle);
+
+		if (passWord == strSqlPassword) {
+			if (strSqlStatus == "0") {
+				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
+				wstr = converter.from_bytes(query);
+				wcout << wstr << endl;
+				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+					cout << "Error querying SQL Server";
+					cout << "\n";
+				}
+				else {
+					initParam(reply, LOGIN_SUCCESS, "Login success");
+				}
+			}
+			else {
+				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
+			}
+		}
+		else {
+			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
+		}
+}
+    
 void handleMess(LPSESSION session, char *mess, char *reply) {
 	char cmd[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
 	char res[BUFFSIZE];
-
-	//Parse message
+  
+  //Parse message
 	parseMess(mess, cmd, p1, p2);
 
-	if (!strcmp(cmd, LOGIN)) {
+  if (!strcmp(cmd, LOGIN)) {
 		handleLOGIN(session, p1, p2, res);
 	}
 	else if (!strcmp(cmd, LOGOUT)) {
 		handleLOGOUT(session, res);
-	}
+  }
 	else if (!strcmp(cmd, REGISTER)) {
 		handleREGISTER(p1, p2, res);
 	}

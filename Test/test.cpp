@@ -1,159 +1,208 @@
-#include <Windows.h>
-#include <fileapi.h>
-#include <string.h>
+#include <iostream>
+#include <vector>
 #include <string>
-#include <sstream>
-#include <stdio.h>
+using namespace std;
 
-typedef struct SESSION {
-	SOCKET cmdSock;
-	char username[MAX_PATH];
-	char workingDir[MAX_PATH];
+string getXepLoai(float diem);
 
-	void setUsername(const char *iUsername);
-	void setWorkingDir(const char *iWorkingDir);
-	void closeFile();
-} SESSION, *LPSESSION;
+class NhanVien {
+public:
+	string maNhanVien;
+	string hoVaTen;
+	int namSinh;
+	float heSoLuong;
+	string chucDanh;
+	int tongLuong;
+	float cdp;
 
-void SESSION::setUsername(const char * iUsername) {
-	strcpy_s(this->username, MAX_PATH, iUsername);
-}
+	NhanVien(string iMaNhanVien, string iHoVaTen, int iNamSinh, float iheSoLuong, string ichucDanh, int luongToiThieu) {
+		this->maNhanVien = iMaNhanVien;
+		this->hoVaTen = iHoVaTen;
+		this->namSinh = iNamSinh;
+		this->heSoLuong = iheSoLuong;
+		this->chucDanh = ichucDanh;
+		this->tongLuong = luongToiThieu * heSoLuong + getPccv(ichucDanh);
+		this->cdp = tongLuong * 0.01;
 
-void SESSION::setWorkingDir(const char * iWorkingDir) {
-	strcpy_s(this->workingDir, MAX_PATH, iWorkingDir);
-}
-
-#define SERVER_ADDR "127.0.0.1"
-#define CMD_PORT 5500
-#define BUFFSIZE 4096
-#define ENDING_DELIMITER "\"End\""
-#define HEADER_DELIMITER "\"Head\""
-#define PARA_DELIMITER "\"Para\""
-
-#define LOGIN "LOGI"
-#define LOGOUT "LOGO"
-#define REGISTER "REG"
-#define RETRIEVE "RETR"
-#define STORE "STOR"
-#define RENAME "RN"
-#define DELETEFILE "DEL"
-#define MAKEDIR "MKD"
-#define REMOVEDIR "RMD"
-#define CHANGEWDIR "CWD"
-#define PRINTWDIR "PWD"
-#define LISTDIR "LIST"
-#define RESPONE "RES"
-#define RECEIVE "RECV"
-
-enum REPLY_CODE {
-	LOGIN_SUCCESS = 110,
-	LOGOUT_SUCCESS = 111,
-	REGISTER_SUCCESS = 112,
-
-	NOT_LOGIN = 310,
-	ALREADY_LOGIN = 311,
-	ID_NOT_EXIST = 312,
-	ID_ALREADY_EXIST = 313,
-	WRONG_PASSWORD = 314,
-
-	RETRIEVE_SUCCESS = 220,
-	STORE_SUCCESS = 221,
-	FINISH_SEND = 120,
-	RENAME_SUCCESS = 121,
-	DELETE_SUCCESS = 122,
-	MAKEDIR_SUCCESS = 123,
-	REMOVEDIR_SUCCESS = 124,
-	CHANGEWDIR_SUCCESS = 125,
-	PRINTWDIR_SUCCESS = 126,
-	LIST_SUCCESS = 127,
-
-	NO_ACCESS = 320,
-	FILE_NOT_EXIST = 321,
-	FILE_ALREADY_EXIST = 322,
-	NAME_WRONG_FORMAT = 323,
-	TRANSMIT_FAIL = 324,
-
-	WRONG_SYNTAX = 330,
-	SERVER_FAIL = 331
-};
-
-template <typename T, typename X>
-void initParam(char *param, const T p1, const X p2);
-
-template <typename T, typename X>
-void initMessage(char *mess, const char *header, const T p1, const X p2) {
-	char param[BUFFSIZE];
-
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
-}
-
-template <typename T, typename X>
-void initParam(char *param, const T p1, const X p2) {
-	strcpy_s(param, BUFFSIZE, "");
-	std::ostringstream sstr;
-
-	if (p1 == NULL)
-		return;
-
-	if (p2 == NULL)
-		sstr << p1;
-	else
-		sstr << p1 << PARA_DELIMITER << p2;
-
-	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
-}
-
-bool checkAccess(LPSESSION session, char *path) {
-	char rootPath[MAX_PATH];
-	char fullPath[MAX_PATH];
-	char temp[MAX_PATH];
-
-	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
-
-	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
-	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
-
-	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
-		strcpy_s(path, MAX_PATH, fullPath);
-		return TRUE;
 	}
 
-	strcpy_s(path, MAX_PATH, "");
-	return FALSE;
-}
+	int getPccv(string chucDanh) {
+		if (chucDanh == "GVCC")
+			return  2000;
+		if (chucDanh == "GVC")
+			return  1500;
+		if (chucDanh == "GV")
+			return  1000;
+		if (chucDanh == "CBKT")
+			return 750;
+		if (chucDanh == "CBHC")
+			return 500;
 
+		return 0;
+	}
+};
+
+class PhongBan {
+public:
+	string ten;
+	string diaChi;
+	int luongToiThieu;
+	int soNhanVien;
+	float tongLuong;
+	float tongCD;
+
+	vector<NhanVien> nhanVienList;
+
+	PhongBan(string iTen, string iDiaChi, int iLuongth, int isoNhanVien) {
+		this->ten = iTen;
+		this->diaChi = iDiaChi;
+		this->luongToiThieu = iLuongth;
+		this->soNhanVien = isoNhanVien;
+	}
+
+
+	void getTongLuong() {
+
+		for (NhanVien nv : nhanVienList) {
+			this->tongLuong += nv.tongLuong;
+		}
+
+	}
+
+	void getCd() {
+
+		for (NhanVien nv : nhanVienList) {
+			this->tongCD += nv.cdp;
+		}
+
+	}
+
+
+	friend ostream& operator<<(ostream& out, const PhongBan pb) {
+	
+
+		out << "Ten phong ban: " << pb.ten << '\n';
+		out << "Dia chi: " << pb.diaChi << '\n';
+		out << "Luong toi thieu:" << pb.luongToiThieu << '\n';
+		out << "Tong luong :" << pb.tongLuong << '\n';
+		out << "Tong cd phi :" << pb.tongCD << '\n';
+		out << "Bang luong nhan vien:\n";
+		out << "MaNV\tHotenNV\tChucDanh\tPCCV\tHeSoL\tLuong\tCDP\n";
+
+		for (NhanVien nv : pb.nhanVienList) {
+			out << nv.maNhanVien << '\t' << nv.hoVaTen << '\t' << nv.chucDanh << "\t\t" << nv.getPccv(nv.chucDanh) << '\t' << nv.heSoLuong << '\t' << nv.tongLuong << '\t' << nv.cdp << '\n';
+		}
+
+		return out;
+	}
+};
+
+vector<PhongBan> gPhongBanList;
+
+void nhapPhongBan();
+void inThongTin();
 
 int main() {
-	//char mess1[BUFFSIZE], mess2[BUFFSIZE], mess3[BUFFSIZE], reply[BUFFSIZE];
-	//initMessage(mess1, "abc", "123", "456");
-	//printf("Mess1 : %s\n", mess1);
-	//initMessage(mess2, "abc", "123", NULL);
-	//printf("Mess2 : %s\n", mess2);
-	//initMessage(mess3, "abc", NULL, NULL);
-	//printf("Mess3 : %s\n", mess3);
 
-	////std::string res = std::to_string(LOGIN_SUCCESS);
-	//initMessage(reply, RESPONE, LOGIN_SUCCESS, NULL);
-	//printf("RES : %s\n", reply);
-	//
+	cout << "0. Thoat" << '\n';
+	cout << "1. Nhap cac phong ban" << '\n';
+	cout << "2. In ket qua ds phong ban va Nhan vien" << '\n';
+
+	int choice;
+	while (1) {
+		cout << "\nNhap lua chon: ";
+		cin >> choice;
+		cin.ignore(256, '\n');
+
+		switch (choice) {
+		case 0: return 0;
+		case 1:
+			nhapPhongBan();
+			break;
+		case 2:
+			inThongTin();
+			break;
+		default: printf("Nhap lai\n"); break;
+		}
+	}
+}
+
+void nhapPhongBan() {
+	int soPhongBan;
+
+	string ten;
+	string diaChi;
+	int luongToiThieu;
+	int soNhanVien;
+
+	string maNhanVien;
+	string hoVaTen;
+	int namSinh;
+	float heSoLuong;
+	string chucDanh;
+
+	cout << "Ban da chon nhap ds phong ban nhan vien!\n";
+	cout << "Nhap so phong ban: ";
+
+	cin >> soPhongBan;
+	cin.ignore(256, '\n');
+
+	for (int i = 1; i <= soPhongBan; ++i) {
+		cout << "\nNhap thong tin cua phong ban thu " << i << ":\n";
+		cout << "Nhap ten phong ban: ";
+		getline(cin, ten);
+
+		cout << "Nhap dia chi: ";
+		getline(cin, diaChi);
+
+		cout << "Nhap luong toi thieu: ";
+		cin >> luongToiThieu;
+
+		cout << "Nhap so nhan vien: ";
+		cin >> soNhanVien;
+
+		cin.ignore(256, '\n');
+
+		PhongBan pb(ten, diaChi, luongToiThieu, soNhanVien);
 
 
+		for (int j = 1; j <= soNhanVien; ++j) {
+			cout << "Nhap nhan vien thu " << j << ":\n";
 
-	SESSION session;
-	session.setUsername("dat");
-	session.setWorkingDir("dat");
-	char path[MAX_PATH] = "smth";
+			cout << "\tNhap Ma nhan vien: ";
+			getline(cin, maNhanVien);
 
-	if (checkAccess(&session, path))
-		printf("%s\n", path);
-	if (!CreateDirectoryA(path, NULL))
-		printf("CreateDirectoryA() failed with error %d\n", GetLastError());
-	strcpy_s(path, MAX_PATH, "..\\..\\smth");
-	if (!checkAccess(&session, path))
-		printf("CHILL\n");
+			cout << "\tNhap Ten nhan vien: ";
+			getline(cin, hoVaTen);
+
+			cout << "\tNhap nam sinh: ";
+			cin >> namSinh;
+
+			cout << "\tNhap hs luong: ";
+			cin >> heSoLuong;
+
+			cin.ignore(256, '\n');
+
+			cout << "\tNhap chuc danh: ";
+			getline(cin, chucDanh);
+
+			cout << '\n';
+
+			pb.nhanVienList.emplace_back(maNhanVien, hoVaTen, namSinh, heSoLuong, chucDanh, luongToiThieu);
+		}
+
+		gPhongBanList.push_back(pb);
+		cout << "\n";
+	}
+
+	cout << "Ban da nhap thanh cong!\n\n";
+}
+
+void inThongTin() {
+	cout << "Ban da chon xuat ds Phong ban\n";
+	for (PhongBan pb : gPhongBanList) {
+		pb.getTongLuong();
+		pb.getCd();
+		cout << pb << "\n\n";
+	}
 }

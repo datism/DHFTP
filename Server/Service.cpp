@@ -526,7 +526,7 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 void handleREGISTER(char *username, char *password, char* reply) {
 	string userName = username;
 	string passWord = password;
-	
+
 	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");
 		return;
@@ -536,14 +536,28 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 	wstring wstr;
 
+	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
+	wstr = converter.from_bytes(query);
+
+
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
+	}
+	else {
+		//Create new dir
+		if (CreateDirectoryA(username, NULL))
+			initParam(reply, REGISTER_SUCCESS, "Register success");
+		else {
+			printf("CreateDirectoryA() failed with error %d\n", GetLastError());
+			initParam(reply, SERVER_FAIL, "CreateDirectoryA() failed");
+		}
+	}
 }
 
 void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
 	string userName = username;
 	string passWord = password;
-	
+
 	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");
 		return;
@@ -562,7 +576,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		wcout << wstr;
 		return;
 	}
-		   
+
 	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
 		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
@@ -593,6 +607,11 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		else {
 			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
 		}
+	}
+	else {
+		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
+		SQLCloseCursor(gSqlStmtHandle);
+	}
 }
     
 void handleMess(LPSESSION session, char *mess, char *reply) {

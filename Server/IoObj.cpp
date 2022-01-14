@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include "EnvVar.h"
 
-volatile DWORD count;
-
-
 _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
@@ -21,8 +18,6 @@ _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *b
 
 		if (buffer != NULL)
 			strcpy_s(newobj->buffer, length, buffer);
-
-		InterlockedIncrement(&count);
 	}
 
 	return newobj;
@@ -30,7 +25,6 @@ _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *b
 
 void freeIoObject(_In_ LPIO_OBJ ioobj) {
 	HeapFree(GetProcessHeap(), NULL, ioobj);
-	InterlockedDecrement(&count);
 }
 
 void IO_OBJ::setBufferSend(_In_z_ char *i_buffer) {

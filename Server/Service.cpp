@@ -163,6 +163,11 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
 
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	//Check param
 	if (strlen(filename) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
@@ -198,6 +203,11 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 }
 
 void handleRECEIVE(LPSESSION session, char * reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	LPIO_OBJ sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
 	if (session->fileobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Session fileobj null");
@@ -218,6 +228,11 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	char newfile[BUFFSIZE];
 	LPFILEOBJ fileobj;
 	LONG64 size;
+
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
 
 	//Check param
 	size = _atoi64(fileSize);
@@ -290,7 +305,12 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	initParam(reply, STORE_SUCCESS, "Can start sending file");
 }
 
-void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {	
+void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0 || strlen(newname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
@@ -319,6 +339,11 @@ void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply)
 }
 
 void handleDELETE(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
@@ -343,6 +368,11 @@ void handleDELETE(LPSESSION session, char *pathname, char *reply) {
 }
 
 void handleMAKEDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
@@ -367,6 +397,11 @@ void handleMAKEDIR(LPSESSION session, char *pathname, char *reply) {
 }
 
 void handleREMOVEDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
@@ -393,6 +428,11 @@ void handleREMOVEDIR(LPSESSION session, char *pathname, char *reply) {
 }
 
 void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
@@ -409,10 +449,20 @@ void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply) {
 }
 
 void handlePRINTWDIR(LPSESSION session, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	initParam(reply, PRINTWDIR_SUCCESS, session->workingDir);
 }
 
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
+	if (strlen(session->username) == 0) {
+		initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;
+	}
+
 	if (strlen(pathname) == 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;

@@ -78,6 +78,66 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	}
 }
 
+void changePass(LPSESSION session, char *reply) {
+	char oldpass[BUFFSIZE], newpass[BUFFSIZE];
+	string userName = session->username;
+
+	if (userName.length() == 0) {
+		initParam(reply, NOT_LOGIN, "Logout failed. Didn't log in");
+		return;
+	}
+
+	cout << "Enter old password: ";
+	gets_s(oldpass, BUFFSIZE);
+	cout << "Enter new password: ";
+	gets_s(oldpass, BUFFSIZE);
+
+	string oldPass = oldpass, newPass = newpass;
+
+	if (oldPass.length() == 0 || newPass.length() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
+	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	string query = "SELECT * FROM Account where username='" + userName + "'";
+	wstring wstr = converter.from_bytes(query);
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+		cout << "Error querying SQL Server" << endl;
+		wcout << wstr;
+		return ;
+	}
+
+	SQLWCHAR sqlPassword[50];
+
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
+		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
+		SQLCloseCursor(gSqlStmtHandle);
+
+		if (oldPass == strSqlPassword) {
+			query = "UPDATE Account SET password = " + newPass + " WHERE username='" + userName + "';";
+			wstr = converter.from_bytes(query);
+			wcout << wstr << endl;
+			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+				cout << "Error querying SQL Server";
+				cout << "\n";
+			}
+			else {
+				//initParam(reply, CHANGE_PASS_SUCCESS, "Password changed successfully");
+			}
+		}
+		else {
+			//initParam(reply, CHANGE_PASS_SUCCESS, "Wrong old password");
+		}
+	}
+	else {
+		SQLCloseCursor(gSqlStmtHandle);
+	}
+}
+
 void handleLOGOUT(LPSESSION session, char *reply) {
 	string username = session->username;
 

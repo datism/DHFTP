@@ -22,6 +22,14 @@ void freeSession(_In_ LPSESSION session) {
 	HeapFree(GetProcessHeap(), NULL, session);
 }
 
+void SESSION::setUsername(const char * iUsername) {
+	strcpy_s(this->username, MAX_PATH, iUsername);
+}
+
+void SESSION::setWorkingDir(const char * iWorkingDir) {
+	strcpy_s(this->workingDir, MAX_PATH, iWorkingDir);
+}
+
 void SESSION::closeFile() {
 	if (this->fileobj != NULL)
 		FreeFileObj(this->fileobj);

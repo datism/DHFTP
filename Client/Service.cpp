@@ -1,5 +1,6 @@
 #include "Service.h"
 #include <stdio.h>
+#include <sstream>
 #include <string>
 #include "Envar.h"
 #include "Io.h"
@@ -51,20 +52,43 @@ bool RetrieveRequest(LpSession session, char *sendBuff, const char *serverFile, 
 	return true;
 }
 
+void RenameRequest(char *sendBuf, const char *serverFile, const char *newname) {
+	initMessage(sendBuf, RENAME, serverFile, newname);
+}
+
+void DeleteRequest(char *sendBuf, const char *serverFile) {
+	initMessage(sendBuf, DELETEFILE, serverFile, NULL);
+}
+
+void MakeDirRequest(char *sendBuf, const char *dirPath) {
+	initMessage(sendBuf, MAKEDIR, dirPath, NULL);
+}
+
+void RemoveDirRequest(char *sendBuf, const char *dirPath) {
+	initMessage(sendBuf, REMOVEDIR, dirPath, NULL);
+}
+
+void ChangeWDirRequest(char *sendBuf, const char *dirPath) {
+	initMessage(sendBuf, CHANGEWDIR, dirPath, NULL);
+}
+
+void PrintWDirRequest(char *sendBuf, const char *dirPath) {
+	initMessage(sendBuf, PRINTWDIR, dirPath, NULL);
+}
+
+void ListDirRequest(char *sendBuf, const char *dirPath) {
+	initMessage(sendBuf, LISTDIR, dirPath, NULL);
+}
+
 void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
-	strcpy_s(sendBuff, BUFFSIZE, 0);
-
-	printf("\nChoose service\n");
-	printf("1.LOGIN\n");
-	printf("2.LOGOUT\n");
-	printf("3.REGISTER\n");
-	printf("4.STORE FILE\n");
-	printf("5.RETRIEVE FILE\n");
-
+	strcpy_s(sendBuff, BUFFSIZE, "");
 	int choice;
 	char p1[BUFFSIZE], p2[BUFFSIZE];
+
+	printf("\nChoose service: ");
 	while (1) {
 		scanf_s("%d", &choice);
+		printf("\n");
 
 		//Clear input buffer
 		int c;
@@ -109,6 +133,43 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 			if (!RetrieveRequest(session, sendBuff, p1, p2))
 				break;
 			return;
+		case 6:
+			printf("Enter server file path: ");
+			gets_s(p1, BUFFSIZE);
+			printf("Enter new name: ");
+			gets_s(p2, BUFFSIZE);
+			RenameRequest(sendBuff, p1, p2);
+			break;
+		case 7:
+			printf("Enter server file path: ");
+			gets_s(p1, BUFFSIZE);
+			DeleteRequest(sendBuff, p1);
+			break;
+		case 8:
+			printf("Enter directory path: ");
+			gets_s(p1, BUFFSIZE);
+			MakeDirRequest(sendBuff, p1);
+			break;
+		case 9:
+			printf("Enter directory path: ");
+			gets_s(p1, BUFFSIZE);
+			RemoveDirRequest(sendBuff, p1);
+			break;
+		case 10:
+			printf("Enter directory path: ");
+			gets_s(p1, BUFFSIZE);
+			ChangeWDirRequest(sendBuff, p1);
+			break;
+		case 11:
+			printf("Enter directory path: ");
+			gets_s(p1, BUFFSIZE);
+			PrintWDirRequest(sendBuff, p1);
+			break;
+		case 12:
+			printf("Enter directory path: ");
+			gets_s(p1, BUFFSIZE);
+			ListDirRequest(sendBuff, p1);
+			break;
 			//Invalid input
 		default: {printf("Invalid input, choose again.\n"); continue; }
 		}
@@ -129,19 +190,20 @@ bool handleReply(LpSession session, const char *reply) {
 	case RETRIEVE_SUCCESS:
 		session->fileSize = _atoi64(p2);
 		return recvFile(session);
-	case 221:return sendFile(session);
-	case 120:
+	case STORE_SUCCESS:
+		return sendFile(session);
+	case FINISH_SEND:
 		session->closeFile();
 		break;
 	default:
-		if (strlen(p1) != 0)
-			printf("%d %s\n", res, p2);
+		if (strlen(p2) != 0) {
+			printf("%s\n", p2);
+		}
 		break;
 	}
 
 	return FALSE;
 }
-
 
 void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
 	std::string strMess = reply;
@@ -193,4 +255,20 @@ void initParam(char *param, const T p1, const X p2) {
 		sstr << p1 << PARA_DELIMITER << p2;
 
 	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
+}
+
+void usage() {
+	printf("Command are:\n");
+	printf("login <username> <password>\n");
+	printf("logout <username>\n");
+	printf("reg <username> <password>\n");
+	printf("get <path-to-file> <save-as>\n");
+	printf("put <path-to-file> <save-as>\n");
+	printf("rn <path-to-file> <new-name>\n");
+	printf("del <path-to-file>\n");
+	printf("mkdr <path-to-dir>\n");
+	printf("rmdr <path-to-dir>\n");
+	printf("cd <path-to-dir>\n");
+	printf("pwd <path-to-dir>\n");
+	printf("ls <path-to-dir>\n");
 }

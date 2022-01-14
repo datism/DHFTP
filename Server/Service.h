@@ -48,6 +48,18 @@ void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
 void parseMess(const char *mess, char *cmd, char *p1, char *p2);
 
 /**
+ * @brief check the access of current user with the path
+ * 
+ * @param[in] session 
+ * @param[in, out] path
+ *          full path if return true
+ *          "" if return false 
+ * @return true if user have access to path
+ * @return false else
+ */
+bool checkAccess(LPSESSION session, char *path);
+
+/**
 * @brief
 *
 * @param[in] session
@@ -78,7 +90,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply);
 
 void handleRECEIVE(LPSESSION session, char *reply);
 
-void handleSTORE(LPSESSION session, char * filename, LONG64 fileSize, char *reply);
+void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
 
 /**
 * @brief
@@ -143,3 +155,5 @@ void handlePRINTWDIR(LPSESSION session, char *reply);
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 
 bool connectSQL();
+
+bool checkName(char * name);

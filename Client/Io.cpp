@@ -46,38 +46,46 @@ int blockRecv(SOCKET sock, char *recvBuff, DWORD length) {
 }
 
 bool sendFile(LpSession session) {
+	LARGE_INTEGER totalBytes;
+	ZeroMemory(&totalBytes, sizeof(totalBytes));
 	//Send file
-	if (!TransmitFile(session->sock, session->hfile, session->fileSize, BUFFSIZE, NULL, NULL, 0)) {
-		printf("TransmitFile() failed with error %d\n", WSAGetLastError());
-		session->closeFile();
-		return FALSE;
-	}
+	while (totalBytes.QuadPart < session->fileSize) {
+		DWORD bytes = min(session->fileSize - totalBytes.QuadPart, TRANSMITFILE_MAX);
 
+		if (!TransmitFile(session->fileSock, session->hfile, bytes, 0, NULL, NULL, 0)) {
+			printf("TransmitFile() failed with error %d\n", WSAGetLastError());
+			session->closeFile();
+			return FALSE;
+		}
+
+		totalBytes.LowPart += bytes;
+		SetFilePointerEx(session->hfile, totalBytes, NULL, FILE_BEGIN);
+
+		printf(".....");
+	}
+	printf("\n");
 	return TRUE;
 }
 
 bool recvFile(LpSession session) {
 	WSAOVERLAPPED ol;
-	char buf[BUFFSIZE];
-	DWORD transBytes, n, remain;
+	char buf[BUFFSIZE] = "";
+	LONG64 offset = 0, bytesToRecv = 0;
+	DWORD i = 0, transBytes;
 
 	ZeroMemory(&ol, sizeof(WSAOVERLAPPED));
 
-	initMessage(buf, RECEIVE, NULL, NULL);
-	blockSend(session->sock, buf);
 
-	*buf = 0;
-	n = session->fileSize / BUFFSIZE;
-	remain = session->fileSize % BUFFSIZE;
-	
-	for(int i = 0; i < n; ++i, *buf = 0) {
-		if (blockRecv(session->sock, buf, BUFFSIZE) != BUFFSIZE) {
+	while (offset < session->fileSize) {
+		bytesToRecv = min(session->fileSize - offset, BUFFSIZE);
+
+		if (blockRecv(session->fileSock, buf, bytesToRecv) != bytesToRecv) {
 			session->closeFile();
 			return FALSE;
 		}
 
-		ol.Offset = (i * BUFFSIZE) & 0xFFFF'FFFF;
-		ol.OffsetHigh = ((i * BUFFSIZE) >> 32) & 0xFFFF'FFFF;
+		ol.Offset = offset & 0xFFFF'FFFF;
+		ol.OffsetHigh = offset & 0xFFFF'FFFF;
 
 		if (!WriteFile(session->hfile, buf, BUFFSIZE, &transBytes, &ol)) {
 			printf("WriteFile() failed with error %d", GetLastError());
@@ -85,24 +93,7 @@ bool recvFile(LpSession session) {
 			return FALSE;
 		}
 	}
-
-	if (remain != 0) {
-		*buf = 0;
-		
-		if (blockRecv(session->sock, buf, remain) != remain) {
-			session->closeFile();
-			return FALSE;
-		}
-
-		ol.Offset = (n * BUFFSIZE) & 0xFFFF'FFFF;
-		ol.OffsetHigh = ((n * BUFFSIZE) >> 32) & 0xFFFF'FFFF;
-
-		if (!WriteFile(session->hfile, buf, remain, &transBytes, &ol)) {
-			printf("WriteFile() failed with error %d", GetLastError());
-			session->closeFile();
-			return FALSE;
-		}
-	}
+	
 
 	return TRUE;
 }

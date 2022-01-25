@@ -2,7 +2,10 @@
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
+#define FILE_PORT 6600
 #define BUFFSIZE 4096
+#define TRANSMITFILE_MAX ((2<<30) - 1)
+
 #define ENDING_DELIMITER "\r\n"
 #define HEADER_DELIMITER "\r"
 #define PARA_DELIMITER " "
@@ -22,6 +25,8 @@
 #define RESPONE "RES"
 #define RECEIVE "RECV"
 
+extern sockaddr_in gCmdAddr;
+extern sockaddr_in gFileAddr;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,

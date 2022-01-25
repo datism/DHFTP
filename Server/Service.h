@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>
 #include "Session.h"
 
 /**
@@ -9,33 +10,6 @@
 * @param[out] reply reply to client
 */
 void handleMess(LPSESSION session, char *mess, char *reply);
-
-/**
- * @brief initialize message
- *
- * @param[out] mess
- *      header <HEAD> p1 <PARA> p2 <END>
- *      header <HEAD> p1 <END> (if p2 == NULL)
- *      header <END> (if p1 == NULL && p2 == NULL)                       
- * @param[in] header 
- * @param[in] p1 
- * @param[in] p2 
- */
-template <typename T, typename X>
-void initMessage(_Inout_ char *mess, _In_ const char *header, _In_opt_ const T p1, _In_opt_ const X p2);
-
-/**
- * @brief initialize paramaters
- * 
- * @param[out] param 
- *      p1 <PARA> p2
- *      p1 (if p1 == NULL)
- *      "" (if p1 == NULL && p2 == NULL) 
- * @param[in] p1 
- * @param[in] p2 
- */
-template <typename T, typename X>
-void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
 
 /**
 * @brief parse message into command and paramaters
@@ -146,6 +120,8 @@ void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply);
 */
 void handlePRINTWDIR(LPSESSION session, char *reply);
 
+bool connectSQL();
+
 /**
 * @brief
 *
@@ -154,6 +130,24 @@ void handlePRINTWDIR(LPSESSION session, char *reply);
 */
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 
-bool connectSQL();
+bool checkName(char *name);
 
-bool checkName(char * name);
+void initParam(char *param);
+
+template <typename P>
+void initParam(char *param, P p);
+
+template <typename P, typename... Args>
+void initParam(char *param, P p, Args... paras);
+
+template <typename... Args>
+void initMessage(char *mess, const char *header, Args... paras) {
+	char param[BUFFSIZE] = "";
+
+	initParam(param, paras...);
+
+	if (strlen(param) == 0)
+		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
+	else
+		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+}

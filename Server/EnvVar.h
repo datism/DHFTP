@@ -1,12 +1,21 @@
 #pragma once
 #include <sqltypes.h>
+#include "ListenObj.h"
 
 #define SQL_RESULT_LEN 240
 #define SQL_RETURN_CODE_LEN 1000
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
+#define FILE_PORT 6600
 #define BUFFSIZE 4096
+
+#define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
+#define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
+#define TRANSMITFILE_MAX ((2<<30) - 1)
+
+#define MAX_IOOBJ_PER_FILEOBJ 10
+
 #define ENDING_DELIMITER "\r\n"
 #define HEADER_DELIMITER "\r"
 #define PARA_DELIMITER " "
@@ -26,6 +35,8 @@
 #define RESPONE "RES"
 #define RECEIVE "RECV"
 
+extern LPLISTEN_OBJ gCmdListen;
+extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;
 

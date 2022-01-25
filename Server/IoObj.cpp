@@ -1,8 +1,9 @@
 #include "IoObj.h"
 #include <stdio.h>
+#include <MSWSock.h>
 #include "EnvVar.h"
 
-_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length) {
+LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
 	if ((newobj = (LPIO_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IO_OBJ) + sizeof(BYTE) * length)) == NULL)
@@ -12,6 +13,8 @@ _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *b
 		newobj->operation = operation;
 
 		newobj->buffer = (char *)(((char *)newobj) + sizeof(IO_OBJ));
+
+		newobj->session = session;
 
 		newobj->dataBuff.len = length;
 		newobj->dataBuff.buf = newobj->buffer;
@@ -38,6 +41,11 @@ void IO_OBJ::setBufferRecv(_In_z_ char *i_buffer) {
 	int length = strlen(buffer);
 	this->dataBuff.buf = this->buffer + length;
 	this->dataBuff.len = BUFFSIZE - length;
+}
+
+void IO_OBJ::setFileOffset(LONG64 fileOffset) {
+	this->overlapped.Offset = fileOffset & 0xFFFF'FFFF;
+	this->overlapped.OffsetHigh = (fileOffset >> 32) & 0xFFFF'FFFF;
 }
 
 bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj) {
@@ -76,3 +84,46 @@ bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj) {
 
 	return TRUE;
 }
+
+bool PostSendFile(SOCKET sock, LPFILEOBJ file, LPIO_OBJ sendFObj) {
+	if (!TransmitFile(sock, file->file, min(file->bytestoSend, TRANSMITFILE_MAX), BUFFSIZE, &(sendFObj->overlapped), NULL, 0)) {
+		int error = WSAGetLastError();
+		if (error != WSA_IO_PENDING) {
+			printf("TransmitFile failed with error %d\n", error);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+bool PostAcceptEx(LPLISTEN_OBJ listen, LPIO_OBJ acceptobj) {
+	DWORD bytes;
+	int rc;
+	
+	acceptobj->acceptSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (acceptobj->acceptSock == INVALID_SOCKET) {
+		printf("socket() failed with error %d\n", WSAGetLastError());
+		return FALSE;
+	}
+
+	rc = listen->lpfnAcceptEx(
+		listen->sock,
+		acceptobj->acceptSock,
+		acceptobj->buffer,
+		0,
+		SIZE_OF_ADDRESS,
+		SIZE_OF_ADDRESS,
+		&bytes,
+		&acceptobj->overlapped
+	);
+	
+	if (rc == FALSE) {
+		if (WSAGetLastError() != WSA_IO_PENDING) {
+			printf("AcceptEx() failed with error %d\n", WSAGetLastError());
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+

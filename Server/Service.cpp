@@ -1,14 +1,12 @@
+#include "Service.h"
 #include <WinSock2.h>
-#include <MSWSock.h>
 #include <stdio.h>
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <sqlext.h>
 #include <sqltypes.h>
 #include <sql.h>
 #include <codecvt>
-#include "Service.h"
 #include "EnvVar.h"
 #include "IoObj.h"
 #include "FileObj.h"
@@ -19,6 +17,14 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	string userName = username;
 	string passWord = password;
 
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
+	SQLCHAR sqlUsername[50];
+	SQLCHAR sqlPassword[50];
+	SQLCHAR sqlStatus[50];
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 	string query = "SELECT * FROM Account where username='" + userName + "'";
@@ -30,14 +36,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		return;
 	}
 
-	SQLCHAR sqlUsername[50];
-	SQLCHAR sqlPassword[50];
-	SQLCHAR sqlStatus[50];
-
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-	}
-	else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
 		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
 		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
@@ -57,10 +56,8 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 					cout << "\n";
 				}
 				else {
-					//Set user name
-					session->setUsername(userName.c_str());
-					//Set working dir
-					session->setWorkingDir(userName.c_str());
+					session->setUsername(username);
+					session->setWorkingDir(username);
 					initParam(reply, LOGIN_SUCCESS, "Login success");
 				}
 			}
@@ -134,6 +131,11 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	string userName = username;
 	string passWord = password;
 
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
 	string query;
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 	wstring wstr;
@@ -141,10 +143,8 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
 	wstr = converter.from_bytes(query);
 
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-	}
-	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
@@ -159,6 +159,7 @@ void handleREGISTER(char *username, char *password, char* reply) {
 }
 
 void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
+	LPIO_OBJ acceptobj;
 	LPFILEOBJ fileobj;
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
@@ -187,50 +188,72 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
-			initParam(reply, FILE_ALREADY_EXIST, "File already exist");
+			initParam(reply, FILE_NOT_EXIST, "File doesnt exist");
 		return;
 	}
 
 	GetFileSizeEx(hFile, &fileSize);
-	fileobj = GetFileObj(hFile, fileSize.QuadPart);
 
-	if (session->fileobj != NULL)
-		session->closeFile();
+	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
+	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, BUFFSIZE);
+
+	if (fileobj == NULL || acceptobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
+
+	if (session->fileobj != NULL) {
+		initParam(reply, SERVER_FAIL, "Previous file handle not close?");
+		return;
+	}
 
 	session->fileobj = fileobj;
+	session->EnListPendingOperation(acceptobj);
 
-	initParam(reply, RETRIEVE_SUCCESS, fileSize.QuadPart);
+	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
 void handleRECEIVE(LPSESSION session, char * reply) {
-	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
-		return;
-	}
+	//LPIO_OBJ sendFObj = NULL;
 
-	LPIO_OBJ sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
-	if (session->fileobj == NULL) {
-		initParam(reply, SERVER_FAIL, "Session fileobj null");
-		return;
-	}
+	//if (strlen(session->username) == 0) {
+	//	initParam(reply, NOT_LOGIN, "Didn't log in");
+	//	return;
+	//}
 
-	//Send file
-	if (!TransmitFile(session->cmdSock, session->fileobj->file, session->fileobj->size, BUFFSIZE, &(sendFObj->overlapped), NULL, 0)) {
-		int error = WSAGetLastError();
-		if (error != WSA_IO_PENDING)
-			printf("TransmitFile failed with error %d\n", error);
-	}
+	//sendFObj = getIoObject(IO_OBJ::SEND_F, session, NULL, 0);
+	//if (sendFObj == NULL) {
+	//	initParam(reply, SERVER_FAIL, "Heap out of memory?");
+	//	return;
+	//}
 
-	initParam(reply, FINISH_SEND, "Send file sucessful");
+	//if (session->fileobj == NULL) {
+	//	initParam(reply, SERVER_FAIL, "Already close file?");
+	//	return;
+	//}
+
+	////Send file
+	//session->EnListPendingOperation(sendFObj);
+
+
+	//initParam(reply, FINISH_SEND, "Send file sucessful");
 }
 
 void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
 	char newfile[BUFFSIZE];
 	LPFILEOBJ fileobj;
+	LPIO_OBJ acceptobj;
 	LONG64 size;
 
 	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
+		/*initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;*/
+		session->setUsername("test");
+		session->setWorkingDir("test");
+	}
+
+	if (!checkName(filename)) {
+		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
 	}
 
@@ -247,9 +270,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		return;
 	}
 
-	//Create new file
-	sprintf_s(newfile, BUFFSIZE, "%s-%d.txt", filename, session->cmdSock);
-	HANDLE hFile = CreateFileA(newfile, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
+	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
@@ -263,46 +284,23 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)&(session->cmdSock), 0) == NULL) {
-		FreeFileObj(fileobj);
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
 	}
 
-	fileobj = GetFileObj(hFile, size);
+	fileobj = GetFileObj(hFile, size, FILEOBJ::STOR);
+	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, SIZE_OF_ADDRESSES);
+
+	if (fileobj == NULL || acceptobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
+
 	session->fileobj = fileobj;
+	PostAcceptEx(gFileListen, acceptobj);
 
-	//Number of recveive file
-	DWORD n = size / BUFFSIZE;
-	DWORD remain = size % BUFFSIZE;
-
-	for (int i = 0; i < n; ++i) {
-		LPIO_OBJ recvFObj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
-		recvFObj->sequence = i;
-
-		if (!PostRecv(session->cmdSock, recvFObj)) {
-			session->closeFile();
-			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			return;
-		}
-
-		//InterlockedIncrement(&(fileobj->pending));
-	}
-
-	if (remain != 0) {
-		LPIO_OBJ recvFObj = getIoObject(IO_OBJ::RECV_F, NULL, remain);
-		recvFObj->sequence = n;
-
-		if (!PostRecv(session->cmdSock, recvFObj)) {
-			session->closeFile();
-			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			return;
-		}
-
-		//InterlockedIncrement(&(fileobj->pending));
-	}
-
-	initParam(reply, STORE_SUCCESS, "Can start sending file");
+	initParam(reply, STORE_SUCCESS, "CONNECT");
 }
 
 void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {
@@ -522,101 +520,8 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	}
 }
 
-
-void handleREGISTER(char *username, char *password, char* reply) {
-	string userName = username;
-	string passWord = password;
-
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-		return;
-	}
-
-	string query;
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	wstring wstr;
-
-	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
-	wstr = converter.from_bytes(query);
-
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
-	}
-	else {
-		//Create new dir
-		if (CreateDirectoryA(username, NULL))
-			initParam(reply, REGISTER_SUCCESS, "Register success");
-		else {
-			printf("CreateDirectoryA() failed with error %d\n", GetLastError());
-			initParam(reply, SERVER_FAIL, "CreateDirectoryA() failed");
-		}
-	}
-}
-
-void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
-	string userName = username;
-	string passWord = password;
-
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-		return;
-	}
-
-	SQLCHAR sqlUsername[50];
-	SQLCHAR sqlPassword[50];
-	SQLCHAR sqlStatus[50];
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-	string query = "SELECT * FROM Account where username='" + userName + "'";
-	wstring wstr = converter.from_bytes(query);
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "Error querying SQL Server" << endl;
-		wcout << wstr;
-		return;
-	}
-
-	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
-		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
-		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
-		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
-
-		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
-		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
-
-		SQLCloseCursor(gSqlStmtHandle);
-
-		if (passWord == strSqlPassword) {
-			if (strSqlStatus == "0") {
-				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
-				wstr = converter.from_bytes(query);
-				wcout << wstr << endl;
-				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-					cout << "Error querying SQL Server";
-					cout << "\n";
-				}
-				else {
-					initParam(reply, LOGIN_SUCCESS, "Login success");
-				}
-			}
-			else {
-				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
-			}
-		}
-		else {
-			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
-		}
-	}
-	else {
-		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
-		SQLCloseCursor(gSqlStmtHandle);
-	}
-}
-    
 void handleMess(LPSESSION session, char *mess, char *reply) {
-	char cmd[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
-	char res[BUFFSIZE];
+	char cmd[BUFFSIZE] = "", p1[BUFFSIZE] = "", p2[BUFFSIZE] = "", res[BUFFSIZE] = "";
   
   //Parse message
 	parseMess(mess, cmd, p1, p2);
@@ -744,32 +649,21 @@ bool checkAccess(LPSESSION session, char *path) {
 	return FALSE;
 }
 
-template <typename T, typename X>
-void initMessage(char *mess, const char *header, const T p1, const X p2) {
-	char param[BUFFSIZE];
+void initParam(char *param) {}
 
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+template <typename P>
+void initParam(char *param, P p) {
+	std::ostringstream sstr;
+	sstr << p;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 }
 
-template <typename T, typename X>
-void initParam(char *param, const T p1, const X p2) {
-	strcpy_s(param, BUFFSIZE, "");
+template <typename P, typename... Args>
+void initParam(char *param, P p, Args... paras) {
 	std::ostringstream sstr;
 
-	if (p1 == NULL)
-		return;
+	sstr << p << PARA_DELIMITER;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 
-	if (p2 == NULL)
-		sstr << p1;
-	else
-		sstr << p1 << PARA_DELIMITER << p2;
-
-	string str = sstr.str();
-	const char *cstr = str.c_str();
-	strcpy_s(param, BUFFSIZE, cstr);
+	initParam(param, paras...);
 }

@@ -9,6 +9,7 @@
 #include "Session.h"
 #include "IoObj.h"
 #include "FileObj.h"
+#include "ListenObj.h"
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
 

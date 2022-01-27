@@ -13,20 +13,6 @@
 
 using namespace std;
 
-bool deleteFileByHandle(HANDLE hfile) {
-	FILE_DISPOSITION_INFO fdi;
-	fdi.DeleteFile = TRUE;
-
-	BOOL fResult = SetFileInformationByHandle(hfile, FileDispositionInfo, &fdi, sizeof(FILE_DISPOSITION_INFO));
-	
-	if (!fResult)
-		printf("SetFileInformationByHandle() FileDisposition failed with error %d\n", GetLastError());
-	else
-		CloseHandle(hfile);
-	return fResult;
-}
-
-
 void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
 	string userName = username;
 	string passWord = password;
@@ -166,8 +152,10 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	LARGE_INTEGER fileSize;
 
 	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
-		return;
+		/*initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;*/
+		session->setUsername("test");
+		session->setWorkingDir("test");
 	}
 
 	//Check param
@@ -182,13 +170,16 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		return;
 	}
 
+	EnterCriticalSection(&session->cs);
 	if (session->fileobj != NULL) {
 		initParam(reply, SERVER_FAIL, "1 file at a time");
+		LeaveCriticalSection(&session->cs);
 		return;
 	}
 
 	//Open existing file
 	hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+	LeaveCriticalSection(&session->cs);
 
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
@@ -210,15 +201,14 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 
 	session->fileobj = fileobj;
 	if (!PostAcceptEx(gFileListen, acceptobj)) {
-		initParam(reply, SERVER_FAIL, "Cant open file connection");
-		return;
+		session->closeFile(FALSE);
+		initParam(reply, SERVER_FAIL, "cannot open connection");
 	}
 
 	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
 void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
-	char newfile[BUFFSIZE];
 	LPFILEOBJ fileobj;
 	LPIO_OBJ acceptobj;
 	LONG64 size;
@@ -248,12 +238,15 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		return;
 	}
 
+	EnterCriticalSection(&session->cs);
 	if (session->fileobj != NULL) {
 		initParam(reply, SERVER_FAIL, "1 file at a time");
+		LeaveCriticalSection(&session->cs);
 		return;
 	}
 
-	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
+	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
+	LeaveCriticalSection(&session->cs);
 
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
@@ -264,7 +257,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	}
 
 	//Associates the file hanlde for writing
-	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)&(session->cmdSock), 0) == NULL) {
+	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
@@ -279,7 +272,10 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	}
 
 	session->fileobj = fileobj;
-	PostAcceptEx(gFileListen, acceptobj);
+	if (!PostAcceptEx(gFileListen, acceptobj)) {
+		session->closeFile(TRUE);
+		initParam(reply, SERVER_FAIL, "cannot open connection");
+	}
 
 	initParam(reply, STORE_SUCCESS, "CONNECT");
 }
@@ -546,7 +542,7 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	else
 		initParam(res, WRONG_SYNTAX, "Wrong header");
 
-	initMessage(reply, RESPONE, res, NULL);
+	initMessage(reply, RESPONE, res);
 }
 
 bool connectSQL() {

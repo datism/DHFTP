@@ -17,7 +17,7 @@ void RegisterRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ c
 
 bool StoreRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
 
-bool RetrieveRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * serverFile, _In_ const char * localFile);
+bool RetrieveRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
 
 void initParam(char *param);
 

@@ -12,9 +12,6 @@ LPFILEOBJ GetFileObj(HANDLE hfile, LONG64 size, FILEOBJ::OP op) {
 		newobj->file = hfile;
 		newobj->size = size;
 		newobj->operation = op;
-		newobj->bytestoSend = size;
-		newobj->bytestoRecv = size;
-		newobj->bytestoWrite = size;
 	}
 
 	return newobj;

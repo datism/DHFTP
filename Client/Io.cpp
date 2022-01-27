@@ -60,38 +60,36 @@ bool sendFile(LpSession session) {
 
 		totalBytes.LowPart += bytes;
 		SetFilePointerEx(session->hfile, totalBytes, NULL, FILE_BEGIN);
-
-		printf(".....");
 	}
-	printf("\n");
 	return TRUE;
 }
 
 bool recvFile(LpSession session) {
 	WSAOVERLAPPED ol;
-	char buf[BUFFSIZE] = "";
-	LONG64 offset = 0, bytesToRecv = 0;
-	DWORD i = 0, transBytes;
+	LONG64 offset = 0;
+	DWORD transBytes;
 
 	ZeroMemory(&ol, sizeof(WSAOVERLAPPED));
 
-
 	while (offset < session->fileSize) {
-		bytesToRecv = min(session->fileSize - offset, BUFFSIZE);
+		char buf[BUFFSIZE] = "";
 
-		if (blockRecv(session->fileSock, buf, bytesToRecv) != bytesToRecv) {
+		transBytes = blockRecv(session->fileSock, buf, BUFFSIZE);
+		if (transBytes <= 0) {
 			session->closeFile();
 			return FALSE;
 		}
 
 		ol.Offset = offset & 0xFFFF'FFFF;
-		ol.OffsetHigh = offset & 0xFFFF'FFFF;
+		ol.OffsetHigh = (offset >> 32) & 0xFFFF'FFFF;
 
-		if (!WriteFile(session->hfile, buf, BUFFSIZE, &transBytes, &ol)) {
+		if (!WriteFile(session->hfile, buf, transBytes, &transBytes, &ol)) {
 			printf("WriteFile() failed with error %d", GetLastError());
 			session->closeFile();
 			return FALSE;
 		}
+
+		offset += transBytes;
 	}
 	
 

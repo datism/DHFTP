@@ -11,9 +11,9 @@ typedef struct FILEOBJ {
 		STOR
 	};
 
-	volatile LONG64 bytestoSend;
-	volatile LONG64 bytestoRecv;
-	volatile LONG64 bytestoWrite;
+	volatile LONG64 bytesSended;
+	volatile LONG64 bytesRecved;
+	volatile LONG64 bytesWritten;
 
 } FILEOBJ, *LPFILEOBJ;
 

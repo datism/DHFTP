@@ -23,10 +23,12 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWO
 			strcpy_s(newobj->buffer, length, buffer);
 	}
 
+
 	return newobj;
 }
 
 void freeIoObject(_In_ LPIO_OBJ ioobj) {
+	printf("OP: %d\n", ioobj->operation);
 	HeapFree(GetProcessHeap(), NULL, ioobj);
 }
 
@@ -74,9 +76,9 @@ bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj) {
 }
 
 bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj) {
-	if (WriteFile(hfile, writeObj->buffer, writeObj->dataBuff.len, NULL, &(writeObj->overlapped))) {
+	if (!WriteFile(hfile, writeObj->buffer, writeObj->dataBuff.len, NULL, &(writeObj->overlapped))) {
 		DWORD error = WSAGetLastError();
-		if (error != WSA_IO_PENDING) {
+		if (error != ERROR_IO_PENDING) {
 			printf("WriteFile failed with error %d\n", error);
 			return FALSE;
 		}
@@ -86,7 +88,7 @@ bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj) {
 }
 
 bool PostSendFile(SOCKET sock, HANDLE hfile, LPIO_OBJ sendFObj) {
-	if (!TransmitFile(sock, hfile, sendFObj->dataBuff.len, BUFFSIZE, &(sendFObj->overlapped), NULL, 0)) {
+	if (!TransmitFile(sock, hfile, sendFObj->dataBuff.len, 0, &(sendFObj->overlapped), NULL, 0)) {
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING) {
 			printf("TransmitFile failed with error %d\n", error);

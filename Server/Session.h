@@ -1,6 +1,7 @@
 #pragma once
 #include <WinSock2.h>
 #include <list>
+#include <set>
 #include "FileObj.h"
 #include "EnvVar.h"
 #include "IoObj.h"
@@ -15,13 +16,16 @@ typedef struct SESSION {
 	CRITICAL_SECTION cs;
 	FILEOBJ *fileobj;
 
+	volatile LONG oustandingOp;
 	std::list<LPIO_OBJ> *pending;
+
+	volatile LONG bclosing;
 
 	void setUsername(const char *iUsername);
 	void setWorkingDir(const char *iWorkingDir);
 	void EnListPendingOperation(_In_ LPIO_OBJ ioObj);
 	void ProcessPendingOperations();
-	void closeFile();
+	void closeFile(BOOL deletefile);
 } SESSION, *LPSESSION;
 
 _Ret_maybenull_ LPSESSION getSession();

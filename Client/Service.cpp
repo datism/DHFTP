@@ -39,16 +39,17 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	initMessage(sendBuff, STORE, fileName, session->fileSize);
 }
 
-bool RetrieveRequest(LpSession session, char *sendBuff, const char *serverFile, const char *localFile) {
+
+bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) {
 	if (session->hfile != INVALID_HANDLE_VALUE)
 		session->closeFile();
-	session->hfile = CreateFileA(localFile, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	session->hfile = CreateFileA(fileName, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (session->hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
 
-	initMessage(sendBuff, RETRIEVE, serverFile, NULL);
+	initMessage(sendBuff, RETRIEVE, fileName, NULL);
 	return true;
 }
 
@@ -124,11 +125,9 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 			return;
 			//Retrieve
 		case 5:
-			printf("Enter server file path: ");
+			printf("Enter file name: ");
 			gets_s(p1, BUFFSIZE);
-			printf("Enter local file path: ");
-			gets_s(p2, BUFFSIZE);
-			if (!RetrieveRequest(session, sendBuff, p1, p2))
+			if (!RetrieveRequest(session, sendBuff, p1))
 				break;
 			return;
 		case 6:
@@ -189,12 +188,13 @@ void handleReply(LpSession session, const char *reply) {
 		session->fileSize = _atoi64(p2);
 
 		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
 		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
 			printf("connect() failed with error %d", WSAGetLastError());
 			closesocket(session->fileSock);
 			break;
 		}
-
+		printf("Receiving file.....\n");
 		if (recvFile(session))
 			printf("Recieve file sucessful\n");
 		session->closeFile();
@@ -202,12 +202,14 @@ void handleReply(LpSession session, const char *reply) {
 		break;
 	case STORE_SUCCESS:
 		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
 		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
 			printf("connect() failed with error %d", WSAGetLastError());
 			closesocket(session->fileSock);
 			break;
 		}
 
+		printf("Sending file.....\n");
 		if(sendFile(session)) 
 			printf("Send file sucessful\n");
 		session->closeFile();

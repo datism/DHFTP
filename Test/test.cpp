@@ -17,15 +17,16 @@ void closeFile(HANDLE file, BOOLEAN deleteFile) {
 }
 
 int main() {
-	char *filename = "testbig.rar";
-	char *newname = "testtest.txt";
-	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, OPEN_EXISTING, NULL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE) {
-		printf("CreateFile failed with error %d\n", GetLastError());
-		return 1;
+	int a = 1;
+	for (; 1; cout << "AA") {
+		switch (a)
+		{
+		case 1: continue;
+		case 2: printf("asdasdasd"); break;
+		default:
+			break;
+		}
+
+		cout << "asdasdasd";
 	}
-
-	closeFile(hFile, FALSE);
-
-	return 0;
 }

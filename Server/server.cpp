@@ -117,18 +117,21 @@ void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ 
 
 
 	//Split string by ending delimiter
-	for (; (pos = strstr(mess, ENDING_DELIMITER)) != NULL; mess = pos + strlen(ENDING_DELIMITER)) {
+	while (((pos = strstr(mess, ENDING_DELIMITER)) != NULL) && session->outstandingSend < MAX_SEND_PER_SESSION)   {
 		*pos = 0;
 		handleMess(session, mess, reply);
 
 		if (strlen(reply) == 0)
-			continue;
+			break;
 
 		replyObj = getIoObject(IO_OBJ::SEND_C, session, reply, strlen(reply) + 1);
 		if (replyObj == NULL)
-			continue;
+			break;
 
 		session->EnListPendingOperation(replyObj);
+		InterlockedIncrement(&session->outstandingSend);
+
+		mess = pos + strlen(ENDING_DELIMITER);
 	}
 
 	//The remaining buffer which doesnt end with ending delimiter
@@ -141,6 +144,7 @@ void handleSend(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DWORD 
 	if (transferredBytes != sendObj->dataBuff.len)
 		printf("Internal error?\n");
 	freeIoObject(sendObj);
+	InterlockedDecrement(&session->outstandingSend);
 }
 
 void handleRecvFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recvObj, _In_ DWORD transferredBytes) {
@@ -209,16 +213,16 @@ void handleAccpetFile(_In_ LPLISTEN_OBJ listenobj, _Inout_ LPSESSION session, _I
 	char reply[BUFFSIZE];
 	int LocalSockaddrLen, RemoteSockaddrLen, rc;
 
-	/*listenobj->lpfnGetAcceptExSockaddrs(
+	listenobj->lpfnGetAcceptExSockaddrs(
 		acceptObj->buffer,
-		SIZE_OF_ADDRESSES,
+		0,
 		SIZE_OF_ADDRESS,
 		SIZE_OF_ADDRESS,
 		(SOCKADDR **)&LocalSockaddr,
 		&LocalSockaddrLen,
 		(SOCKADDR **)&RemoteSockaddr,
 		&RemoteSockaddrLen
-	);*/
+	);
 
 	session->fileSock = acceptObj->acceptSock;
 	freeIoObject(acceptObj);
@@ -272,6 +276,61 @@ void handleAccpetFile(_In_ LPLISTEN_OBJ listenobj, _Inout_ LPSESSION session, _I
 
 void handleAccpetCommand(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION session, _Inout_ LPIO_OBJ acceptObj) {
 
+}
+
+void ProcessPendingOperations(_In_ LPSESSION session) {
+	EnterCriticalSection(&session->cs);
+	bool noError;
+
+	while (!session->pending->empty()) {
+		LPIO_OBJ ioobj = session->pending->front();
+
+		switch (ioobj->operation) {
+		case IO_OBJ::RECV_C:
+			if (!(strstr(ioobj->buffer, ENDING_DELIMITER) == NULL)) {
+				handleRecieve(session, ioobj, strlen(ioobj->buffer));
+
+				session->pending->pop_front();
+				LeaveCriticalSection(&session->cs);
+				return;
+			}
+			else
+				noError = PostRecv(session->cmdSock, ioobj);
+			break;
+		case IO_OBJ::SEND_C:
+			noError = PostSend(session->cmdSock, ioobj);
+			break;
+		case IO_OBJ::RECV_F:
+			if (!session->fileobj || session->fileSock == INVALID_SOCKET || !PostRecv(session->fileSock, ioobj)) {
+				noError = FALSE;
+				session->closeFile(TRUE);
+			}
+			else noError = TRUE;
+			break;
+		case IO_OBJ::WRTE_F:
+			if (!session->fileobj || session->fileSock == INVALID_SOCKET || !PostWrite(session->fileobj->file, ioobj)) {
+				noError = FALSE;
+				session->closeFile(TRUE);
+			}
+			else noError = TRUE;
+			break;
+		case IO_OBJ::SEND_F:
+			if (!session->fileobj || session->fileSock == INVALID_SOCKET || !PostSendFile(session->fileSock, session->fileobj->file, ioobj)) {
+				noError = FALSE;
+				session->closeFile(FALSE);
+			}
+			else noError = TRUE;
+			break;
+		}
+
+		if (noError)
+			InterlockedIncrement(&session->oustandingOp);
+		else
+			freeIoObject(ioobj);
+
+		session->pending->pop_front();
+	}
+	LeaveCriticalSection(&session->cs);
 }
 
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
@@ -353,7 +412,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 			}
 
 			if (InterlockedCompareExchange(&session->bclosing, 0, 0) == 0)
-				session->ProcessPendingOperations();
+				ProcessPendingOperations(session);
 		}	
 		else {
 			session = (LPSESSION) key;
@@ -379,10 +438,9 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 			}
 
 			if (InterlockedCompareExchange(&session->bclosing, 0, 0) == 0)
-				session->ProcessPendingOperations();
+				ProcessPendingOperations(session);
 		
 			InterlockedDecrement(&session->oustandingOp);
-
 			if (InterlockedCompareExchange(&session->oustandingOp, 0, 0) == 0 &&
 				InterlockedCompareExchange(&session->bclosing, -1, 1) == 1) {
 				freeSession(session);

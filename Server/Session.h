@@ -16,6 +16,7 @@ typedef struct SESSION {
 	CRITICAL_SECTION cs;
 	FILEOBJ *fileobj;
 
+	volatile LONG outstandingSend;
 	volatile LONG oustandingOp;
 	std::list<LPIO_OBJ> *pending;
 
@@ -24,7 +25,7 @@ typedef struct SESSION {
 	void setUsername(const char *iUsername);
 	void setWorkingDir(const char *iWorkingDir);
 	void EnListPendingOperation(_In_ LPIO_OBJ ioObj);
-	void ProcessPendingOperations();
+	//void ProcessPendingOperations();
 	void closeFile(BOOL deletefile);
 } SESSION, *LPSESSION;
 

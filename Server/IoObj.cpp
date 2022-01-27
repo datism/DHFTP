@@ -23,12 +23,10 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWO
 			strcpy_s(newobj->buffer, length, buffer);
 	}
 
-
 	return newobj;
 }
 
 void freeIoObject(_In_ LPIO_OBJ ioobj) {
-	printf("OP: %d\n", ioobj->operation);
 	HeapFree(GetProcessHeap(), NULL, ioobj);
 }
 

@@ -7,6 +7,12 @@
 
 void LoginRequest(char *sendBuff, const char *username, const char *password) {
 	initMessage(sendBuff, LOGIN, username, password);
+
+	/*std::ostringstream ss;
+	for (int i = 0; i < 10; ++i)
+		ss << sendBuff;
+
+	strcpy_s(sendBuff, BUFFSIZE, ss.str().c_str());*/
 }
 
 void LogoutRequest(char *sendBuff) {

@@ -45,7 +45,6 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	initMessage(sendBuff, STORE, fileName, session->fileSize);
 }
 
-
 bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) {
 	if (session->hfile != INVALID_HANDLE_VALUE)
 		session->closeFile();

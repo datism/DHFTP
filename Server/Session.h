@@ -26,6 +26,8 @@ typedef struct SESSION {
 	void setWorkingDir(const char *iWorkingDir);
 	void EnListPendingOperation(_In_ LPIO_OBJ ioObj);
 	//void ProcessPendingOperations();
+
+	//close file and close file connection
 	void closeFile(BOOL deletefile);
 } SESSION, *LPSESSION;
 

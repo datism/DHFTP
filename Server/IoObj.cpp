@@ -26,17 +26,17 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWO
 	return newobj;
 }
 
-void freeIoObject(_In_ LPIO_OBJ ioobj) {
+void freeIoObject(LPIO_OBJ ioobj) {
 	HeapFree(GetProcessHeap(), NULL, ioobj);
 }
 
-void IO_OBJ::setBufferSend(_In_z_ char *i_buffer) {
+void IO_OBJ::setBufferSend(char *i_buffer) {
 	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
 	this->dataBuff.buf = this->buffer;
 	this->dataBuff.len = strlen(this->buffer);
 }
 
-void IO_OBJ::setBufferRecv(_In_z_ char *i_buffer) {
+void IO_OBJ::setBufferRecv(char *i_buffer) {
 	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
 	int length = strlen(buffer);
 	this->dataBuff.buf = this->buffer + length;
@@ -48,7 +48,7 @@ void IO_OBJ::setFileOffset(LONG64 fileOffset) {
 	this->overlapped.OffsetHigh = (fileOffset >> 32) & 0xFFFF'FFFF;
 }
 
-bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj) {
+bool PostSend(SOCKET sock,LPIO_OBJ sendObj) {
 	if ((WSASend(sock, &(sendObj->dataBuff), 1, NULL, 0, &(sendObj->overlapped), NULL)) == SOCKET_ERROR) {
 		DWORD error = WSAGetLastError();
 		if (error != WSA_IO_PENDING) {
@@ -60,7 +60,7 @@ bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj) {
 	return TRUE;
 }
 
-bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj) {
+bool PostRecv(SOCKET sock, LPIO_OBJ recvObj) {
 	DWORD flags = 0;
 	if ((WSARecv(sock, &(recvObj->dataBuff), 1, NULL, &flags, &(recvObj->overlapped), NULL)) == SOCKET_ERROR) {
 		DWORD error = WSAGetLastError();
@@ -73,7 +73,7 @@ bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj) {
 	return TRUE;
 }
 
-bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj) {
+bool PostWrite(HANDLE hfile, LPIO_OBJ writeObj) {
 	if (!WriteFile(hfile, writeObj->buffer, writeObj->dataBuff.len, NULL, &(writeObj->overlapped))) {
 		DWORD error = WSAGetLastError();
 		if (error != ERROR_IO_PENDING) {

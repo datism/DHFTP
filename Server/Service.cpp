@@ -151,6 +151,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
 
+	//havent login
 	if (strlen(session->username) == 0) {
 		/*initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;*/
@@ -170,17 +171,17 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		return;
 	}
 
+	//previous file wasnt closed
 	EnterCriticalSection(&session->cs);
 	if (session->fileobj != NULL) {
 		initParam(reply, SERVER_FAIL, "1 file at a time");
 		LeaveCriticalSection(&session->cs);
 		return;
 	}
+	LeaveCriticalSection(&session->cs);
 
 	//Open existing file
 	hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-	LeaveCriticalSection(&session->cs);
-
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
@@ -200,6 +201,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	}
 
 	session->fileobj = fileobj;
+	//accept file connection
 	if (!PostAcceptEx(gFileListen, acceptobj)) {
 		session->closeFile(FALSE);
 		initParam(reply, SERVER_FAIL, "cannot open connection");
@@ -213,6 +215,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	LPIO_OBJ acceptobj;
 	LONG64 size;
 
+	//havent login
 	if (strlen(session->username) == 0) {
 		/*initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;*/
@@ -220,6 +223,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		session->setWorkingDir("test");
 	}
 
+	//check file name
 	if (!checkName(filename)) {
 		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
@@ -238,16 +242,17 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		return;
 	}
 
+	//previous file wasnt closed
 	EnterCriticalSection(&session->cs);
 	if (session->fileobj != NULL) {
 		initParam(reply, SERVER_FAIL, "1 file at a time");
 		LeaveCriticalSection(&session->cs);
 		return;
 	}
-
-	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 	LeaveCriticalSection(&session->cs);
 
+	//creat new file
+	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
@@ -272,6 +277,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	}
 
 	session->fileobj = fileobj;
+	//accpect file connection
 	if (!PostAcceptEx(gFileListen, acceptobj)) {
 		session->closeFile(TRUE);
 		initParam(reply, SERVER_FAIL, "cannot open connection");
@@ -598,12 +604,6 @@ bool connectSQL() {
 	return TRUE;
 }
 
-bool checkName(char *name) {
-	if (NULL == strchr(name, '\\'))
-		return TRUE;
-	return FALSE;
-}
-
 bool checkAccess(LPSESSION session, char *path) {
 	char rootPath[MAX_PATH];
 	char fullPath[MAX_PATH];
@@ -622,6 +622,13 @@ bool checkAccess(LPSESSION session, char *path) {
 	strcpy_s(path, MAX_PATH, "");
 	return FALSE;
 }
+
+bool checkName(char *name) {
+	if (NULL == strchr(name, '\\'))
+		return TRUE;
+	return FALSE;
+}
+
 
 void initParam(char *param) {}
 

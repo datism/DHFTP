@@ -66,6 +66,7 @@ void SESSION::EnListPendingOperation(LPIO_OBJ ioObj){
 void SESSION::closeFile(BOOL deleteFile) {
 	EnterCriticalSection(&this->cs);
 
+	//close file connection
 	if (this->fileSock != INVALID_SOCKET) {
 		/*if (shutdown(this->fileSock, SD_BOTH) == SOCKET_ERROR) {
 			printf("shutdown failed with error %d\n", WSAGetLastError());
@@ -74,18 +75,22 @@ void SESSION::closeFile(BOOL deleteFile) {
 			printf("CancelIoEx failed with error %d\n", WSAGetLastError());
 		}*/
 
+		printf("Closing file socket %d\n", this->fileSock);
 		if (closesocket(this->fileSock) == SOCKET_ERROR) {
 			printf("closesocket failed with error %d\n", WSAGetLastError());
 		}
 		this->fileSock = INVALID_SOCKET;
 	}
 
+	//close file
 	if (this->fileobj != NULL) {
+		//not delete file if file use for retrieve
 		if (!(this->fileobj->operation == FILEOBJ::STOR)) {
 			/*if (CancelIoEx(this->fileobj->file, NULL)) {
 				printf("CancelIoEx failed with error %d\n", WSAGetLastError());
 			}*/
 
+			//mark file for delete after closehandle
 			FILE_DISPOSITION_INFO fdi;
 			fdi.DeleteFile = deleteFile;
 			if (!SetFileInformationByHandle(this->fileobj->file,
@@ -117,20 +122,26 @@ LPSESSION getSession() {
 }
 
 void freeSession(LPSESSION session) {
-	printf("Closing socket %d\n", session->cmdSock);
-	if (closesocket(session->cmdSock) == SOCKET_ERROR) {
-		printf("closesocket failed with error %d\n", WSAGetLastError());
-	}
-
+	//logout
 	if (strlen(session->username) != 0) {
 		char s[BUFFSIZE];
 		handleLOGOUT(session, s);
 	}
 
+	//close file
 	session->closeFile(TRUE);
+
+	//close connection
+	printf("Closing cmd socket %d\n", session->cmdSock);
+	if (closesocket(session->cmdSock) == SOCKET_ERROR) {
+		printf("closesocket failed with error %d\n", WSAGetLastError());
+	}
+
+	//free ioobj in pending list
 	for (LPIO_OBJ ioobj : *session->pending)
 		freeIoObject(ioobj);
 	free(session->pending);
+
 	DeleteCriticalSection(&(session->cs));
 	HeapFree(GetProcessHeap(), NULL, session);
 }

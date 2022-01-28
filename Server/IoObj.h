@@ -8,10 +8,12 @@ typedef struct SESSION *LPSESSION;
 typedef struct IO_OBJ {
 	WSAOVERLAPPED overlapped;
 
+	//for recv, send and write
 	WSABUF dataBuff;
 	_Field_z_
 	CHAR *buffer;
 
+	//for accept
 	SOCKET acceptSock;
 	LPSESSION session;
 

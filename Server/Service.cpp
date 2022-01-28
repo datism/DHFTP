@@ -479,6 +479,10 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 	FindClose(hFind);
 }
 
+void newParseMess(const char *mess, char *cmd, std::list<std::string> para) {
+
+}
+
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	std::string strMess = mess;
 	std::string strCmd, strP1, strP2;

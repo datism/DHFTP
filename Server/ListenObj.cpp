@@ -29,6 +29,10 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		return NULL;
 	}
 
+	sockaddr add;
+	int size = sizeof(add);
+	getsockname(newObj->sock, &add, &size);
+
 	//Load Acceptex
 	rc = WSAIoctl(
 		newObj->sock,

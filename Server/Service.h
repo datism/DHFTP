@@ -128,7 +128,6 @@ bool checkAccess(LPSESSION session, char *path);
 */
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 
-
 /**
 * @brief check if file's name is valid
 *

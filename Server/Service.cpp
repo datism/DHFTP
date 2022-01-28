@@ -1,14 +1,12 @@
+#include "Service.h"
 #include <WinSock2.h>
-#include <MSWSock.h>
 #include <stdio.h>
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <sqlext.h>
 #include <sqltypes.h>
 #include <sql.h>
 #include <codecvt>
-#include "Service.h"
 #include "EnvVar.h"
 #include "IoObj.h"
 #include "FileObj.h"
@@ -19,14 +17,8 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	string userName = username;
 	string passWord = password;
 
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-	string query = "SELECT * FROM Account where username='" + userName + "'";
-	wstring wstr = converter.from_bytes(query);
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "Error querying SQL Server" << endl;
-		wcout << wstr;
+	if (userName.size() == 0 || passWord.size() == 0) {
+		initParam(reply, EMPTY_FIELD, "Empty field");
 		return;
 	}
 
@@ -34,10 +26,15 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	SQLCHAR sqlPassword[50];
 	SQLCHAR sqlStatus[50];
 
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
+	string query = "SELECT * FROM Account where username='" + userName + "'";
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
+		cout << "Error querying SQL Server" << endl;
+		cout << query;
+		return;
 	}
-	else if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
+
+	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
 		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
 		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
 		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
@@ -50,17 +47,13 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		if (passWord == strSqlPassword) {
 			if (strSqlStatus == "0") {
 				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
-				wstr = converter.from_bytes(query);
-				wcout << wstr << endl;
-				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 					cout << "Error querying SQL Server";
 					cout << "\n";
 				}
 				else {
-					//Set user name
-					session->setUsername(userName.c_str());
-					//Set working dir
-					session->setWorkingDir(userName.c_str());
+					session->setUsername(username);
+					session->setWorkingDir(username);
 					initParam(reply, LOGIN_SUCCESS, "Login success");
 				}
 			}
@@ -146,12 +139,10 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 		return;
 	}
 
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 	string query = "SELECT * FROM Account where username='" + username + "'";
-	wstring wstr = converter.from_bytes(query);
 
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 		cout << "Error querying SQL Server";
 		cout << "\n";
 	}
@@ -167,9 +158,7 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 
 		if (strSqlStatus == "1") {
 			query = "UPDATE Account SET status = 0 WHERE username='" + username + "';";
-			wstr = converter.from_bytes(query);
-			wcout << wstr << endl;
-			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 				cout << "Error querying SQL Server";
 				cout << "\n";
 			}
@@ -194,17 +183,15 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	string userName = username;
 	string passWord = password;
 
-	string query;
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	wstring wstr;
-
-	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
-	wstr = converter.from_bytes(query);
-
 	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
 	}
-	else if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+
+	string query;
+	query = "INSERT INTO Account VALUES ('" + userName + "','" + passWord + "',0)";
+
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
 	}
 	else {
@@ -219,13 +206,17 @@ void handleREGISTER(char *username, char *password, char* reply) {
 }
 
 void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
+	LPIO_OBJ acceptobj;
 	LPFILEOBJ fileobj;
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
 
+	//havent login
 	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
-		return;
+		/*initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;*/
+		session->setUsername("test");
+		session->setWorkingDir("test");
 	}
 
 	//Check param
@@ -240,57 +231,61 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		return;
 	}
 
+	//previous file wasnt closed
+	EnterCriticalSection(&session->cs);
+	if (session->fileobj != NULL) {
+		initParam(reply, SERVER_FAIL, "1 file at a time");
+		LeaveCriticalSection(&session->cs);
+		return;
+	}
+	LeaveCriticalSection(&session->cs);
+
 	//Open existing file
 	hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
-			initParam(reply, FILE_ALREADY_EXIST, "File already exist");
+			initParam(reply, FILE_NOT_EXIST, "File doesnt exist");
 		return;
 	}
 
 	GetFileSizeEx(hFile, &fileSize);
-	fileobj = GetFileObj(hFile, fileSize.QuadPart);
 
-	if (session->fileobj != NULL)
-		session->closeFile();
+	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
+	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, BUFFSIZE);
+
+	if (fileobj == NULL || acceptobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
 
 	session->fileobj = fileobj;
-
-	initParam(reply, RETRIEVE_SUCCESS, fileSize.QuadPart);
-}
-
-void handleRECEIVE(LPSESSION session, char * reply) {
-	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
-		return;
+	//accept file connection
+	if (!PostAcceptEx(gFileListen, acceptobj)) {
+		session->closeFile(FALSE);
+		initParam(reply, SERVER_FAIL, "cannot open connection");
 	}
 
-	LPIO_OBJ sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
-	if (session->fileobj == NULL) {
-		initParam(reply, SERVER_FAIL, "Session fileobj null");
-		return;
-	}
-
-	//Send file
-	if (!TransmitFile(session->cmdSock, session->fileobj->file, session->fileobj->size, BUFFSIZE, &(sendFObj->overlapped), NULL, 0)) {
-		int error = WSAGetLastError();
-		if (error != WSA_IO_PENDING)
-			printf("TransmitFile failed with error %d\n", error);
-	}
-
-	initParam(reply, FINISH_SEND, "Send file sucessful");
+	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
 void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
-	char newfile[BUFFSIZE];
 	LPFILEOBJ fileobj;
+	LPIO_OBJ acceptobj;
 	LONG64 size;
 
+	//havent login
 	if (strlen(session->username) == 0) {
-		initParam(reply, NOT_LOGIN, "Didn't log in");
+		/*initParam(reply, NOT_LOGIN, "Didn't log in");
+		return;*/
+		session->setUsername("test");
+		session->setWorkingDir("test");
+	}
+
+	//check file name
+	if (!checkName(filename)) {
+		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
 	}
 
@@ -307,62 +302,48 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		return;
 	}
 
-	//Create new file
-	sprintf_s(newfile, BUFFSIZE, "%s-%d.txt", filename, session->cmdSock);
-	HANDLE hFile = CreateFileA(newfile, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
+	//previous file wasnt closed
+	EnterCriticalSection(&session->cs);
+	if (session->fileobj != NULL) {
+		initParam(reply, SERVER_FAIL, "1 file at a time");
+		LeaveCriticalSection(&session->cs);
+		return;
+	}
+	LeaveCriticalSection(&session->cs);
 
+	//creat new file
+	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_EXISTS)
 			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
-		else if (error == ERROR_PATH_NOT_FOUND)
-			initParam(reply, FILE_NOT_EXIST, "Path not found");
 		return;
 	}
 
 	//Associates the file hanlde for writing
-	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)&(session->cmdSock), 0) == NULL) {
-		FreeFileObj(fileobj);
+	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
 	}
 
-	fileobj = GetFileObj(hFile, size);
+	fileobj = GetFileObj(hFile, size, FILEOBJ::STOR);
+	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, SIZE_OF_ADDRESSES);
+
+	if (fileobj == NULL || acceptobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
+
 	session->fileobj = fileobj;
-
-	//Number of recveive file
-	DWORD n = size / BUFFSIZE;
-	DWORD remain = size % BUFFSIZE;
-
-	for (int i = 0; i < n; ++i) {
-		LPIO_OBJ recvFObj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
-		recvFObj->sequence = i;
-
-		if (!PostRecv(session->cmdSock, recvFObj)) {
-			session->closeFile();
-			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			return;
-		}
-
-		//InterlockedIncrement(&(fileobj->pending));
+	//accpect file connection
+	if (!PostAcceptEx(gFileListen, acceptobj)) {
+		session->closeFile(TRUE);
+		initParam(reply, SERVER_FAIL, "cannot open connection");
 	}
 
-	if (remain != 0) {
-		LPIO_OBJ recvFObj = getIoObject(IO_OBJ::RECV_F, NULL, remain);
-		recvFObj->sequence = n;
-
-		if (!PostRecv(session->cmdSock, recvFObj)) {
-			session->closeFile();
-			initParam(reply, TRANSMIT_FAIL, "Receive file fail");
-			return;
-		}
-
-		//InterlockedIncrement(&(fileobj->pending));
-	}
-
-	initParam(reply, STORE_SUCCESS, "Can start sending file");
+	initParam(reply, STORE_SUCCESS, "CONNECT");
 }
 
 void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {
@@ -558,6 +539,10 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 	FindClose(hFind);
 }
 
+void newParseMess(const char *mess, char *cmd, std::list<std::string> para) {
+
+}
+
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	std::string strMess = mess;
 	std::string strCmd, strP1, strP2;
@@ -582,82 +567,8 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 	}
 }
 
-
-void handleREGISTER(char *username, char *password, char* reply) {
-	string userName = username;
-	string passWord = password;
-	
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-		return;
-	}
-
-	string query;
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	wstring wstr;
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		initParam(reply, USER_ALREADY_EXIST, "Register failed. Username already exists");
-}
-
-void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
-	string userName = username;
-	string passWord = password;
-	
-	if (userName.size() == 0 || passWord.size() == 0) {
-		initParam(reply, EMPTY_FIELD, "Empty field");
-		return;
-	}
-
-	SQLCHAR sqlUsername[50];
-	SQLCHAR sqlPassword[50];
-	SQLCHAR sqlStatus[50];
-	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-	string query = "SELECT * FROM Account where username='" + userName + "'";
-	wstring wstr = converter.from_bytes(query);
-
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-		cout << "Error querying SQL Server" << endl;
-		wcout << wstr;
-		return;
-	}
-		   
-	if (SQLFetch(gSqlStmtHandle) == SQL_SUCCESS) {
-		SQLGetData(gSqlStmtHandle, 1, SQL_CHAR, sqlUsername, sizeof(sqlUsername), NULL);
-		SQLGetData(gSqlStmtHandle, 2, SQL_CHAR, sqlPassword, sizeof(sqlPassword), NULL);
-		SQLGetData(gSqlStmtHandle, 3, SQL_CHAR, sqlStatus, sizeof(sqlStatus), NULL);
-
-		string strSqlPassword = reinterpret_cast<char*>(sqlPassword);
-		string strSqlStatus = reinterpret_cast<char*>(sqlStatus);
-
-		SQLCloseCursor(gSqlStmtHandle);
-
-		if (passWord == strSqlPassword) {
-			if (strSqlStatus == "0") {
-				query = "UPDATE Account SET status = 1 WHERE username='" + userName + "';";
-				wstr = converter.from_bytes(query);
-				wcout << wstr << endl;
-				if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
-					cout << "Error querying SQL Server";
-					cout << "\n";
-				}
-				else {
-					initParam(reply, LOGIN_SUCCESS, "Login success");
-				}
-			}
-			else {
-				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
-			}
-		}
-		else {
-			initParam(reply, WRONG_PASSWORD, "Login failed. Wrong password");
-		}
-}
-    
 void handleMess(LPSESSION session, char *mess, char *reply) {
-	char cmd[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
-	char res[BUFFSIZE];
+	char cmd[BUFFSIZE] = "", p1[BUFFSIZE] = "", p2[BUFFSIZE] = "", res[BUFFSIZE] = "";
   
   //Parse message
 	parseMess(mess, cmd, p1, p2);
@@ -676,9 +587,6 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
 		handleRETRIVE(session, p1, res);
-	}
-	else if (!strcmp(cmd, RECEIVE)) {
-		handleRECEIVE(session, res);
 	}
 	else if (!strcmp(cmd, RENAME)) {
 		handleRENAME(session, p1, p2, res);
@@ -704,13 +612,13 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 	else
 		initParam(res, WRONG_SYNTAX, "Wrong header");
 
-	initMessage(reply, RESPONE, res, NULL);
+	initMessage(reply, RESPONE, res);
 }
 
 bool connectSQL() {
 	SQLHANDLE sqlConnHandle;
 	SQLHANDLE sqlEnvHandle;
-	SQLWCHAR retconstring[SQL_RETURN_CODE_LEN];
+	SQLCHAR retconstring[SQL_RETURN_CODE_LEN];
 
 	sqlConnHandle = NULL;
 	gSqlStmtHandle = NULL;
@@ -727,7 +635,7 @@ bool connectSQL() {
 
 	switch (SQLDriverConnect(sqlConnHandle,
 		NULL,
-		(SQLWCHAR*)L"DRIVER={SQL Server};SERVER=localhost, 1433;DATABASE=FileSystem;UID=sa;PWD=minh1234;",
+		(SQLCHAR*)"DRIVER={SQL Server};SERVER=localhost, 1433;DATABASE=FileSystem;UID=sa;PWD=minh1234;",
 		SQL_NTS,
 		retconstring,
 		1024,
@@ -760,12 +668,6 @@ bool connectSQL() {
 	return TRUE;
 }
 
-bool checkName(char *name) {
-	if (NULL == strchr(name, '\\'))
-		return TRUE;
-	return FALSE;
-}
-
 bool checkAccess(LPSESSION session, char *path) {
 	char rootPath[MAX_PATH];
 	char fullPath[MAX_PATH];
@@ -785,32 +687,28 @@ bool checkAccess(LPSESSION session, char *path) {
 	return FALSE;
 }
 
-template <typename T, typename X>
-void initMessage(char *mess, const char *header, const T p1, const X p2) {
-	char param[BUFFSIZE];
-
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+bool checkName(char *name) {
+	if (NULL == strchr(name, '\\'))
+		return TRUE;
+	return FALSE;
 }
 
-template <typename T, typename X>
-void initParam(char *param, const T p1, const X p2) {
-	strcpy_s(param, BUFFSIZE, "");
+
+void initParam(char *param) {}
+
+template <typename P>
+void initParam(char *param, P p) {
+	std::ostringstream sstr;
+	sstr << p;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
+}
+
+template <typename P, typename... Args>
+void initParam(char *param, P p, Args... paras) {
 	std::ostringstream sstr;
 
-	if (p1 == NULL)
-		return;
+	sstr << p << PARA_DELIMITER;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 
-	if (p2 == NULL)
-		sstr << p1;
-	else
-		sstr << p1 << PARA_DELIMITER << p2;
-
-	string str = sstr.str();
-	const char *cstr = str.c_str();
-	strcpy_s(param, BUFFSIZE, cstr);
+	initParam(param, paras...);
 }

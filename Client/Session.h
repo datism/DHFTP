@@ -2,7 +2,9 @@
 #include <WinSock2.h>
 
 typedef struct Session{
-	SOCKET sock;
+	SOCKET cmdSock;
+	SOCKET fileSock;
+
 	HANDLE hfile;
 	LONG64 fileSize;
 

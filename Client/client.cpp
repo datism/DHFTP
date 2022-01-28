@@ -8,6 +8,9 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
+ 
+sockaddr_in gCmdAddr;
+sockaddr_in gFileAddr;
 
 void parseReply(char *reply, char *header, char *p1, char *p2);
 
@@ -26,16 +29,22 @@ int main(int argc, char* argv[]) {
 		printf("Version is not supported \n");
 
 	//Specify server address
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
 	char *serverIp = SERVER_ADDR;
-	int serverPort = CMD_PORT;
-	serverAddr.sin_port = htons(serverPort);
-	inet_pton(AF_INET, serverIp, &serverAddr.sin_addr);
+
+
+	gCmdAddr.sin_family = AF_INET;
+	int cmdPort = CMD_PORT;
+	gCmdAddr.sin_port = htons(cmdPort);
+	inet_pton(AF_INET, serverIp, &gCmdAddr.sin_addr);
+
+	gFileAddr.sin_family = AF_INET;
+	int filePort = FILE_PORT;
+	gFileAddr.sin_port = htons(filePort);
+	inet_pton(AF_INET, serverIp, &gFileAddr.sin_addr);
 
 	SOCKET cmdSock;
 	cmdSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (connect(cmdSock, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
+	if (connect(cmdSock, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
 		printf("\nError: %d", WSAGetLastError());
 		closesocket(cmdSock);
 		return 0;
@@ -50,7 +59,7 @@ int main(int argc, char* argv[]) {
 		buff[BUFFSIZE];
 
 	session = getSession();
-	session->sock = cmdSock;
+	session->cmdSock = cmdSock;
 
 	printf("1.LOGIN\n");
 	printf("2.LOGOUT\n");
@@ -68,12 +77,12 @@ int main(int argc, char* argv[]) {
 
 	while (1) {
 		chooseService(session, buff);
-		blockSend(session->sock, buff);
+		blockSend(session->cmdSock, buff);
 
 		strcpy_s(buff, BUFFSIZE, "");
 		
 		do {
-			bytes = blockRecv(session->sock, buff, BUFFSIZE);
+			bytes = blockRecv(session->cmdSock, buff, BUFFSIZE);
 			if (!bytes)
 				break;
 
@@ -82,12 +91,12 @@ int main(int argc, char* argv[]) {
 
 			while ((pos = strstr(reply, ENDING_DELIMITER)) != NULL) {
 				*pos = 0;
-				cont = handleReply(session, reply);
+				handleReply(session, reply);
 				reply = pos + strlen(ENDING_DELIMITER);
 			}
 
 			strcpy_s(buff, BUFFSIZE, reply);
-		} while (strlen(buff) != 0 || cont == TRUE);
+		} while (strlen(buff) != 0);
 	}
 
 	FreeSession(session);

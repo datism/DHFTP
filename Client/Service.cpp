@@ -7,6 +7,12 @@
 
 void LoginRequest(char *sendBuff, const char *username, const char *password) {
 	initMessage(sendBuff, LOGIN, username, password);
+
+	/*std::ostringstream ss;
+	for (int i = 0; i < 10; ++i)
+		ss << sendBuff;
+
+	strcpy_s(sendBuff, BUFFSIZE, ss.str().c_str());*/
 }
 
 void LogoutRequest(char *sendBuff) {
@@ -17,13 +23,13 @@ void RegisterRequest(char *sendBuff, const char *username, const char *password)
 	initMessage(sendBuff, REGISTER, username, password);
 }
 
-bool StoreRequest(LpSession session, char *sendBuff, const char *serverFile, const char *localFile) {
+bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	LARGE_INTEGER fileSize;
 
 	if (session->hfile != INVALID_HANDLE_VALUE)
 		session->closeFile();
 
-	session->hfile = CreateFileA(localFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	session->hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (session->hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
@@ -36,19 +42,19 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *serverFile, con
 
 	session->fileSize = fileSize.QuadPart;
 
-	initMessage(sendBuff, STORE, serverFile, session->fileSize);
+	initMessage(sendBuff, STORE, fileName, session->fileSize);
 }
 
-bool RetrieveRequest(LpSession session, char *sendBuff, const char *serverFile, const char *localFile) {
+bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) {
 	if (session->hfile != INVALID_HANDLE_VALUE)
 		session->closeFile();
-	session->hfile = CreateFileA(localFile, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	session->hfile = CreateFileA(fileName, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (session->hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
 
-	initMessage(sendBuff, RETRIEVE, serverFile, NULL);
+	initMessage(sendBuff, RETRIEVE, fileName, NULL);
 	return true;
 }
 
@@ -72,8 +78,8 @@ void ChangeWDirRequest(char *sendBuf, const char *dirPath) {
 	initMessage(sendBuf, CHANGEWDIR, dirPath, NULL);
 }
 
-void PrintWDirRequest(char *sendBuf, const char *dirPath) {
-	initMessage(sendBuf, PRINTWDIR, dirPath, NULL);
+void PrintWDirRequest(char *sendBuf) {
+	initMessage(sendBuf, PRINTWDIR);
 }
 
 void ListDirRequest(char *sendBuf, const char *dirPath) {
@@ -85,8 +91,8 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	int choice;
 	char p1[BUFFSIZE], p2[BUFFSIZE];
 
-	printf("\nChoose service: ");
 	while (1) {
+		printf("\nChoose service: ");
 		scanf_s("%d", &choice);
 		printf("\n");
 
@@ -117,20 +123,16 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 			return;
 			//Store file
 		case 4:
-			printf("Enter server file path: ");
+			printf("Enter file name: ");
 			gets_s(p1, BUFFSIZE);
-			printf("Enter local file path: ");
-			gets_s(p2, BUFFSIZE);
-			if (!StoreRequest(session, sendBuff, p1, p2))
+			if (!StoreRequest(session, sendBuff, p1))
 				break;
 			return;
 			//Retrieve
 		case 5:
-			printf("Enter server file path: ");
+			printf("Enter file name: ");
 			gets_s(p1, BUFFSIZE);
-			printf("Enter local file path: ");
-			gets_s(p2, BUFFSIZE);
-			if (!RetrieveRequest(session, sendBuff, p1, p2))
+			if (!RetrieveRequest(session, sendBuff, p1))
 				break;
 			return;
 		case 6:
@@ -163,7 +165,7 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 		case 11:
 			printf("Enter directory path: ");
 			gets_s(p1, BUFFSIZE);
-			PrintWDirRequest(sendBuff, p1);
+			PrintWDirRequest(sendBuff);
 			break;
 		case 12:
 			printf("Enter directory path: ");
@@ -177,23 +179,50 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 
 }
 
-bool handleReply(LpSession session, const char *reply) {
+void handleReply(LpSession session, const char *reply) {
 	char header[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
 	parseReply(reply, header, p1, p2);
 
 	if (strcmp(header, "RES") || strlen(p1) == 0)
-		return FALSE;
+		return;
 
 	int res = atoi(p1);
 
 	switch (res) {
 	case RETRIEVE_SUCCESS:
 		session->fileSize = _atoi64(p2);
-		return recvFile(session);
+
+		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
+		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
+			printf("connect() failed with error %d", WSAGetLastError());
+			closesocket(session->fileSock);
+			break;
+		}
+		printf("Receiving file.....\n");
+		if (recvFile(session))
+			printf("Recieve file sucessful\n");
+		session->closeFile();
+		closesocket(session->fileSock);
+		break;
 	case STORE_SUCCESS:
-		return sendFile(session);
+		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
+		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
+			printf("connect() failed with error %d", WSAGetLastError());
+			closesocket(session->fileSock);
+			break;
+		}
+
+		printf("Sending file.....\n");
+		if(sendFile(session)) 
+			printf("Send file sucessful\n");
+		session->closeFile();
+		closesocket(session->fileSock);
+		break;
 	case FINISH_SEND:
 		session->closeFile();
+		closesocket(session->fileSock);
 		break;
 	default:
 		if (strlen(p2) != 0) {
@@ -201,8 +230,6 @@ bool handleReply(LpSession session, const char *reply) {
 		}
 		break;
 	}
-
-	return FALSE;
 }
 
 void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
@@ -229,34 +256,6 @@ void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
 	}
 }
 
-template <typename T, typename X>
-void initMessage(char *mess, const char *header, const T p1, const X p2) {
-	char param[BUFFSIZE];
-
-	initParam(param, p1, p2);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
-}
-
-template <typename T, typename X>
-void initParam(char *param, const T p1, const X p2) {
-	strcpy_s(param, BUFFSIZE, "");
-	std::ostringstream sstr;
-
-	if (p1 == NULL)
-		return;
-
-	if (p2 == NULL)
-		sstr << p1;
-	else
-		sstr << p1 << PARA_DELIMITER << p2;
-
-	strcpy_s(param, BUFFSIZE, sstr.str().c_str());
-}
-
 void usage() {
 	printf("Command are:\n");
 	printf("login <username> <password>\n");
@@ -271,4 +270,23 @@ void usage() {
 	printf("cd <path-to-dir>\n");
 	printf("pwd <path-to-dir>\n");
 	printf("ls <path-to-dir>\n");
+}
+
+void initParam(char *param) {}
+
+template <typename P>
+void initParam(char *param, P p) {
+	std::ostringstream sstr;
+	sstr << p;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
+}
+
+template <typename P, typename... Args>
+void initParam(char *param, P p, Args... paras) {
+	std::ostringstream sstr;
+
+	sstr << p << PARA_DELIMITER;
+	strcat_s(param, BUFFSIZE, sstr.str().c_str());
+
+	initParam(param, paras...);
 }

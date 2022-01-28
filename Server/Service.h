@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>
 #include "Session.h"
 
 /**
@@ -11,33 +12,6 @@
 void handleMess(LPSESSION session, char *mess, char *reply);
 
 /**
- * @brief initialize message
- *
- * @param[out] mess
- *      header <HEAD> p1 <PARA> p2 <END>
- *      header <HEAD> p1 <END> (if p2 == NULL)
- *      header <END> (if p1 == NULL && p2 == NULL)                       
- * @param[in] header 
- * @param[in] p1 
- * @param[in] p2 
- */
-template <typename T, typename X>
-void initMessage(_Inout_ char *mess, _In_ const char *header, _In_opt_ const T p1, _In_opt_ const X p2);
-
-/**
- * @brief initialize paramaters
- * 
- * @param[out] param 
- *      p1 <PARA> p2
- *      p1 (if p1 == NULL)
- *      "" (if p1 == NULL && p2 == NULL) 
- * @param[in] p1 
- * @param[in] p2 
- */
-template <typename T, typename X>
-void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
-
-/**
 * @brief parse message into command and paramaters
 *
 * @param[in] mess message
@@ -46,18 +20,6 @@ void initParam(_Inout_ char *param, _In_opt_ const T p1, _In_opt_ const X p2);
 * @param[out] p2 paramater2
 */
 void parseMess(const char *mess, char *cmd, char *p1, char *p2);
-
-/**
- * @brief check the access of current user with the path
- * 
- * @param[in] session 
- * @param[in, out] path
- *          full path if return true
- *          "" if return false 
- * @return true if user have access to path
- * @return false else
- */
-bool checkAccess(LPSESSION session, char *path);
 
 /**
 * @brief
@@ -87,8 +49,6 @@ void handleLOGOUT(LPSESSION session, char *reply);
 void handleREGISTER(char *username, char *password, char* reply);
 
 void handleRETRIVE(LPSESSION session, char *filename, char *reply);
-
-void handleRECEIVE(LPSESSION session, char *reply);
 
 void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
 
@@ -146,6 +106,20 @@ void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply);
 */
 void handlePRINTWDIR(LPSESSION session, char *reply);
 
+bool connectSQL();
+
+/**
+* @brief check the access of current user with the path
+*
+* @param[in] session
+* @param[in, out] path
+*          full path if return true
+*          "" if return false
+* @return true if user have access to path
+* @return false else
+*/
+bool checkAccess(LPSESSION session, char *path);
+
 /**
 * @brief
 *
@@ -154,6 +128,30 @@ void handlePRINTWDIR(LPSESSION session, char *reply);
 */
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 
-bool connectSQL();
+/**
+* @brief check if file's name is valid
+*
+* @param[in] name
+* @retun true if name's valide
+*/
+bool checkName(char *name);
 
-bool checkName(char * name);
+void initParam(char *param);
+
+template <typename P>
+void initParam(char *param, P p);
+
+template <typename P, typename... Args>
+void initParam(char *param, P p, Args... paras);
+
+template <typename... Args>
+void initMessage(char *mess, const char *header, Args... paras) {
+	char param[BUFFSIZE] = "";
+
+	initParam(param, paras...);
+
+	if (strlen(param) == 0)
+		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
+	else
+		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
+}

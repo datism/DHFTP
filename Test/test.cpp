@@ -1,14 +1,21 @@
-﻿#include <Windows.h>
+#include <iostream>
+#include <Windows.h>
 #include <fileapi.h>
-#include <stdio.h>
+
+
+using namespace std;
+
+void closeFile(HANDLE file, BOOLEAN deleteFile) {
+	FILE_DISPOSITION_INFO fdi;
+	fdi.DeleteFile = deleteFile;
+	if (!SetFileInformationByHandle(file,
+		FileDispositionInfo, &fdi, sizeof(FILE_DISPOSITION_INFO))) {
+		printf("SetFileInformationByHandle failed with error %d\n", GetLastError());
+	}
+
+	CloseHandle(file);
+}
 
 int main() {
-	HANDLE file = CreateFile("test.txt", GENERIC_READ, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	char buffer[] = "helloWorld";
-	DWORD bytesWritten;
-	WriteFile(file, buffer, strlen(buffer), &bytesWritten, NULL);
 
-	HANDLE file1;
-	if ((file1 = CreateFile("test.txt", GENERIC_READ, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
-		printf("fuck %d\n", GetLastError());
 }

@@ -1,33 +1,44 @@
 #pragma once
-
 #include <WinSock2.h>
-#include "EnvVar.h"
+#include "ListenObj.h"
 
-typedef struct {
+typedef struct SESSION *LPSESSION;
+
+
+typedef struct IO_OBJ {
 	WSAOVERLAPPED overlapped;
+
+	//for recv, send and write
 	WSABUF dataBuff;
-	CHAR buffer[BUFFSIZE];
+	_Field_z_
+	CHAR *buffer;
+
+	//for accept
+	SOCKET acceptSock;
+	LPSESSION session;
+
 	int operation;
 	enum OP {
 		RECV_C,
 		SEND_C,
-		RECV_F
+		ACPT_C,
+		RECV_F,
+		SEND_F,
+		WRTE_F,
+		ACPT_F,
 	};
 
-	void setBufferSend(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		dataBuff.buf = buffer;
-		dataBuff.len = strlen(buffer);
-	}
-
-	void setBufferRecv(char *i_buffer) {
-		strcpy_s(buffer, BUFFSIZE, i_buffer);
-		dataBuff.buf = buffer + strlen(buffer);
-		dataBuff.len = BUFFSIZE;
-	}
-
+	void setBufferSend(_In_z_ char *i_buffer);
+	void setBufferRecv(_In_z_ char *i_buffer);
+	void setFileOffset(_In_ LONG64 fileOffset);
 } IO_OBJ, *LPIO_OBJ;
 
 
-LPIO_OBJ getIoObject(IO_OBJ::OP operation);
-void freeIoObject(LPIO_OBJ ioobj);
+_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ LPSESSION session, _In_opt_ char *buffer, _In_ DWORD length);
+void freeIoObject(_In_ LPIO_OBJ ioobj);
+
+bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj);
+bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj);
+bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj);
+bool PostSendFile(_In_ SOCKET sock, _In_ HANDLE hfile, _In_ LPIO_OBJ sendFObj);
+bool PostAcceptEx(_In_ LPLISTEN_OBJ listen, LPIO_OBJ acceptobj);

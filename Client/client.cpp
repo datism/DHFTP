@@ -1,23 +1,24 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <stdio.h>
-#include <conio.h>
-#include "EnvVar.h"
-#include "IoObj.h"
+#include "Envar.h"
+#include "Session.h"
 #include "Service.h"
+#include "Io.h"
 
 #pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "mswsock.lib")
+ 
+sockaddr_in gCmdAddr;
+sockaddr_in gFileAddr;
 
-void CALLBACK workerRoutine(DWORD error, DWORD transferredBytes, LPWSAOVERLAPPED lpOverlapped, DWORD inFlags);
-void chooseService(LPIO_OBJ sendObj);
-void blockSend(SOCKET sock, LPIO_OBJ sendObj);
-void blockReceive(SOCKET sock, LPIO_OBJ receiveObj);
+void parseReply(char *reply, char *header, char *p1, char *p2);
 
 int main(int argc, char* argv[]) {
 	// Validate the parameters
 	/*if (argc != 3)
 	{
-		printf("Usage: %s <ServerIpAddress> <ServerPortNumber>\n", argv[0]);
+		printf("Usage: %s <ServerIpAddressss> <ServerPortNumber>\n", argv[0]);
 		return 1;
 	}
 */
@@ -28,86 +29,78 @@ int main(int argc, char* argv[]) {
 		printf("Version is not supported \n");
 
 	//Specify server address
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
 	char *serverIp = SERVER_ADDR;
-	int serverPort = CMD_PORT;
-	serverAddr.sin_port = htons(serverPort);
-	inet_pton(AF_INET, serverIp, &serverAddr.sin_addr);
+
+
+	gCmdAddr.sin_family = AF_INET;
+	int cmdPort = CMD_PORT;
+	gCmdAddr.sin_port = htons(cmdPort);
+	inet_pton(AF_INET, serverIp, &gCmdAddr.sin_addr);
+
+	gFileAddr.sin_family = AF_INET;
+	int filePort = FILE_PORT;
+	gFileAddr.sin_port = htons(filePort);
+	inet_pton(AF_INET, serverIp, &gFileAddr.sin_addr);
 
 	SOCKET cmdSock;
 	cmdSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (connect(cmdSock, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
+	if (connect(cmdSock, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
 		printf("\nError: %d", WSAGetLastError());
 		closesocket(cmdSock);
 		return 0;
 	}
 	else printf("Connected\n");
 
-	LPIO_OBJ sendObj = getIoObject(IO_OBJ::SEND_C);
-	LPIO_OBJ recvObj = getIoObject(IO_OBJ::RECV_C);
+	LpSession session;
+	int bytes;
+	bool cont;
+	char *pos = NULL,
+		*reply = NULL,
+		buff[BUFFSIZE];
+
+	session = getSession();
+	session->cmdSock = cmdSock;
+
+	printf("1.LOGIN\n");
+	printf("2.LOGOUT\n");
+	printf("3.REGISTER\n");
+	printf("4.STORE FILE\n");
+	printf("5.RETRIEVE FILE\n");
+	printf("6.RENAME FILE\n");
+	printf("7.DELETE FILE\n");
+	printf("8.MAKE DIR\n");
+	printf("9.REMOVE DIR\n");
+	printf("10.CHANGE WROKING DIR\n");
+	printf("11.PRINT WORKING DIR\n");
+	printf("12.LIST DIR\n\n");
+
 
 	while (1) {
-		chooseService(sendObj);
-		blockSend(cmdSock, sendObj);
-		blockReceive(cmdSock, recvObj);
+		chooseService(session, buff);
+		blockSend(session->cmdSock, buff);
+
+		strcpy_s(buff, BUFFSIZE, "");
+		
+		do {
+			bytes = blockRecv(session->cmdSock, buff, BUFFSIZE);
+			if (!bytes)
+				break;
+
+			buff[bytes] = 0;
+			reply = buff;
+
+			while ((pos = strstr(reply, ENDING_DELIMITER)) != NULL) {
+				*pos = 0;
+				handleReply(session, reply);
+				reply = pos + strlen(ENDING_DELIMITER);
+			}
+
+			strcpy_s(buff, BUFFSIZE, reply);
+		} while (strlen(buff) != 0);
 	}
 
-	closesocket(cmdSock);
+	FreeSession(session);
 	WSACleanup();
 
 	return 0;
-}
-
-void chooseService(LPIO_OBJ sendObj) {
-	printf("Choose service\n");
-	_getch();
-	sendObj->setBufferSend("LOGIN");
-}
-
-void blockSend(SOCKET sock, LPIO_OBJ sendObj) {
-	DWORD sentBytes = 0,
-		bufferLen = strlen(sendObj->buffer);
-	//Send all buffer
-	while (sendObj->dataBuff.len > 0) {
-		if (WSASend(sock, &sendObj->dataBuff, 1, &sentBytes, 0, NULL, NULL) == SOCKET_ERROR) {
-			printf("WSASend() failed with error %d\n", WSAGetLastError());
-			return;
-		}
-
-		sendObj->dataBuff.len -= sentBytes;
-		sendObj->dataBuff.buf = sendObj->buffer + bufferLen - sendObj->dataBuff.len;
-	}
-}
-
-void blockReceive(SOCKET sock, LPIO_OBJ receiveObj) {
-	DWORD receivedBytes = 0;
-	char *reply = NULL,
-		*pos = NULL;
-
-	do {
-		//Blocking receive
-		if (WSARecv(sock, &receiveObj->dataBuff, 1, &receivedBytes, 0, NULL, NULL) == SOCKET_ERROR) {
-			printf("WSARecv() failed with error %d\n", WSAGetLastError());
-			return;
-		}
-
-		receiveObj->buffer[receivedBytes] = 0;
-		reply = receiveObj->buffer;
-
-		//Split string by ending delimiter
-		while ((pos = strstr(reply, ENDING_DELIMITER)) != NULL) {
-			*pos = 0;
-			handleReply(reply);
-			reply = pos + strlen(ENDING_DELIMITER);
-		}
-
-		//Set the remaining buffer to receive
-		receiveObj->setBufferRecv(reply);
-
-	} while (strlen(reply) != 0); //Until buffer end with ending delimiter
-}
-
-void CALLBACK workerRoutine(DWORD error, DWORD transferredBytes, LPWSAOVERLAPPED lpOverlapped, DWORD inFlags) {
-
 }

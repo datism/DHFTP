@@ -95,11 +95,9 @@ void changePass(LPSESSION session, char *reply) {
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 	string query = "SELECT * FROM Account where username='" + userName + "'";
-	wstring wstr = converter.from_bytes(query);
 
-	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 		cout << "Error querying SQL Server" << endl;
-		wcout << wstr;
 		return ;
 	}
 
@@ -112,9 +110,7 @@ void changePass(LPSESSION session, char *reply) {
 
 		if (oldPass == strSqlPassword) {
 			query = "UPDATE Account SET password = " + newPass + " WHERE username='" + userName + "';";
-			wstr = converter.from_bytes(query);
-			wcout << wstr << endl;
-			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLWCHAR*)wstr.c_str(), SQL_NTS)) {
+			if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 				cout << "Error querying SQL Server";
 				cout << "\n";
 			}
@@ -539,7 +535,7 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 	FindClose(hFind);
 }
 
-void newParseMess(const char *mess, char *cmd, std::list<std::string> para) {
+void newParseMess(const char *mess, char *cmd, std::list<std::string> &para) {
 
 }
 

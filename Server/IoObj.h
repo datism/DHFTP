@@ -15,17 +15,16 @@ typedef struct IO_OBJ {
 
 	//for accept
 	SOCKET acceptSock;
-	LPSESSION session;
 
 	int operation;
 	enum OP {
 		RECV_C,
 		SEND_C,
-		ACPT_C,
 		RECV_F,
 		SEND_F,
 		WRTE_F,
-		ACPT_F,
+		ACCEPT,
+		CONECT
 	};
 
 	void setBufferSend(_In_z_ char *i_buffer);

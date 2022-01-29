@@ -201,7 +201,7 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	}
 }
 
-void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
+void handleRETRIVE(LPSESSION session, char *clientPort, char *filename, char *reply) {
 	LPIO_OBJ acceptobj;
 	LPFILEOBJ fileobj;
 	HANDLE hFile;
@@ -266,10 +266,13 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
-void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
+void handleSTORE(LPSESSION session, char *clientPort, char * filename, char *fileSize, char *reply) {
 	LPFILEOBJ fileobj;
-	LPIO_OBJ acceptobj;
+	SOCKADDR_IN addr;
+	LPIO_OBJ connectobj;
 	LONG64 size;
+	DWORD port;
+	int namelen = sizeof(addr);
 
 	//havent login
 	if (strlen(session->username) == 0) {
@@ -279,18 +282,19 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		session->setWorkingDir("test");
 	}
 
-	//check file name
+	//Check param
+	size = _atoi64(fileSize);
+	port = atoi(clientPort);
+	if (port <= 0 || size <= 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
+
 	if (!checkName(filename)) {
 		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
 	}
 
-	//Check param
-	size = _atoi64(fileSize);
-	if (strlen(filename) == 0 || strlen(fileSize) == 0 || size == 0) {
-		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
-		return;
-	}
 
 	//Check access and get full path
 	if (!checkAccess(session, filename)) {
@@ -316,27 +320,29 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
 		return;
 	}
+	
+	if (getpeername(session->cmdSock, (SOCKADDR *)&addr, &namelen) == SOCKET_ERROR) {
+		printf("getpeername failed with error %d\n", WSAGetLastError());
+		initParam(reply, SERVER_FAIL, "getpeername failed");
+		return;
+	}
+
+	addr.sin_port = htons(port);
+
+	fileobj = GetFileObj(hFile, &addr, size, FILEOBJ::STOR);
+	connectobj = getIoObject(IO_OBJ::CONECT, session, NULL, SIZE_OF_ADDRESSES);
+
+	if (fileobj == NULL || connectobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
+	session->fileobj = fileobj;
 
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
-	}
-
-	fileobj = GetFileObj(hFile, size, FILEOBJ::STOR);
-	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, SIZE_OF_ADDRESSES);
-
-	if (fileobj == NULL || acceptobj == NULL) {
-		initParam(reply, SERVER_FAIL, "Out of memory");
-		return;
-	}
-
-	session->fileobj = fileobj;
-	//accpect file connection
-	if (!PostAcceptEx(gFileListen, acceptobj)) {
-		session->closeFile(TRUE);
-		initParam(reply, SERVER_FAIL, "cannot open connection");
 	}
 
 	initParam(reply, STORE_SUCCESS, "CONNECT");
@@ -684,11 +690,10 @@ bool checkAccess(LPSESSION session, char *path) {
 }
 
 bool checkName(char *name) {
-	if (NULL == strchr(name, '\\'))
+	if (strlen(name) == 0 || NULL == strchr(name, '\\'))
 		return TRUE;
 	return FALSE;
 }
-
 
 void initParam(char *param) {}
 

@@ -37,6 +37,7 @@
 #define RESPONE "RES"
 #define RECEIVE "RECV"
 
+extern CRITICAL_SECTION gCriticalSection;
 extern LPLISTEN_OBJ gCmdListen;
 extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;

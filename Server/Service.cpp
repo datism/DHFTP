@@ -26,6 +26,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	SQLCHAR sqlPassword[50];
 	SQLCHAR sqlStatus[50];
 
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + userName + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
@@ -69,6 +70,8 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
 void changePass(LPSESSION session, char *reply) {
@@ -94,6 +97,7 @@ void changePass(LPSESSION session, char *reply) {
 
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + userName + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
@@ -125,6 +129,8 @@ void changePass(LPSESSION session, char *reply) {
 	else {
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
 void handleLOGOUT(LPSESSION session, char *reply) {
@@ -135,7 +141,7 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 		return;
 	}
 
-
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + username + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
@@ -173,6 +179,8 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 	else {
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
 void handleREGISTER(char *username, char *password, char* reply) {

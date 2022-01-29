@@ -14,6 +14,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
 
+CRITICAL_SECTION gCriticalSection;
 HANDLE gCompletionPort;
 SQLHANDLE gSqlStmtHandle;
 LPLISTEN_OBJ gCmdListen;
@@ -68,6 +69,8 @@ int main(int argc, char *argv[]) {
 
 	printf("Server started\n");
 
+	InitializeCriticalSection(&gCriticalSection);
+
 	while (true) {
 		//Accept connections
 		if ((acceptSock = WSAAccept(gCmdListen->sock, NULL, NULL, NULL, 0)) == SOCKET_ERROR) {
@@ -103,6 +106,8 @@ int main(int argc, char *argv[]) {
 
 
 	}
+
+	DeleteCriticalSection(&gCriticalSection);
 
 	return 0;
 }

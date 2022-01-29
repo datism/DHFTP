@@ -536,7 +536,29 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 }
 
 void newParseMess(const char *mess, char *cmd, std::list<std::string> &para) {
+	string strMess = mess;
+	string strCmd;
+	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER);
 
+	if (crPos == -1) {
+		string strCmd = strMess.substr(0, lenStr);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+
+		string strP = strMess.substr(crPos + 1, lenStr - crPos - 1);
+		int spPos = strP.find(PARA_DELIMITER);
+		
+		while (spPos != -1) {
+			string p = strP.substr(0, spPos);
+			para.push_back(p);
+			int len = strP.length();
+			strP = strP.substr(spPos + 1, len - spPos - 1);
+			spPos = strP.find(PARA_DELIMITER);
+		}
+	}
 }
 
 void parseMess(const char *mess, char *cmd, char *p1, char *p2) {

@@ -8,7 +8,6 @@
 
 typedef struct SESSION {
 	SOCKET cmdSock;
-	SOCKET fileSock;
 
 	char username[MAX_PATH];
 	char workingDir[MAX_PATH];

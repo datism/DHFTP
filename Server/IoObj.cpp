@@ -3,7 +3,7 @@
 #include <MSWSock.h>
 #include "EnvVar.h"
 
-LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWORD length) {
+LPIO_OBJ getIoObject(IO_OBJ::OP operation, char * buffer, DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
 	if ((newobj = (LPIO_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IO_OBJ) + sizeof(BYTE) * length)) == NULL)
@@ -13,8 +13,6 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, LPSESSION session, char * buffer, DWO
 		newobj->operation = operation;
 
 		newobj->buffer = (char *)(((char *)newobj) + sizeof(IO_OBJ));
-
-		newobj->session = session;
 
 		newobj->dataBuff.len = length;
 		newobj->dataBuff.buf = newobj->buffer;
@@ -126,4 +124,26 @@ bool PostAcceptEx(LPLISTEN_OBJ listen, LPIO_OBJ acceptobj) {
 
 	return TRUE;
 }
+
+bool PostConnectEx(LPFILEOBJ fileobj, LPIO_OBJ ioobj) {
+	DWORD bytes;
+	int rc;
+	rc = fileobj->lpfnConnectEx(
+		fileobj->fileSock,
+		&fileobj->clientAddr,
+		sizeof(fileobj->clientAddr),
+		NULL,
+		NULL,
+		&bytes,
+		&ioobj->overlapped
+		);
+
+	if (rc == FALSE) {
+		printf("ConnectEx failed with error %d\n", WSAGetLastError());
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 

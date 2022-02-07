@@ -1,8 +1,7 @@
 #pragma once
 
 #define SERVER_ADDR "127.0.0.1"
-#define CMD_PORT 5500
-#define FILE_PORT 6600
+#define SERVER_PORT 5500
 #define BUFFSIZE 4096
 #define TRANSMITFILE_MAX ((2<<30) - 1)
 
@@ -23,7 +22,6 @@
 #define PRINTWDIR "PWD"
 #define LISTDIR "LIST"
 #define RESPONE "RES"
-#define RECEIVE "RECV"
 
 extern sockaddr_in gCmdAddr;
 extern sockaddr_in gFileAddr;

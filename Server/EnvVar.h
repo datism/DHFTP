@@ -6,8 +6,7 @@
 #define SQL_RETURN_CODE_LEN 1000
 
 #define SERVER_ADDR "127.0.0.1"
-#define CMD_PORT 5500
-#define FILE_PORT 6600
+#define SERVER_PORT 5500
 #define BUFFSIZE 4096
 
 #define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
@@ -16,7 +15,6 @@
 
 #define MAX_SEND_PER_SESSION 5
 #define MAX_IOOBJ_PER_FILEOBJ 10
-
 
 #define ENDING_DELIMITER "\r\n"
 #define HEADER_DELIMITER "\r"
@@ -37,8 +35,6 @@
 #define RESPONE "RES"
 #define RECEIVE "RECV"
 
-extern LPLISTEN_OBJ gCmdListen;
-extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;
 

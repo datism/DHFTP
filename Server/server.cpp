@@ -16,13 +16,13 @@
 
 HANDLE gCompletionPort;
 SQLHANDLE gSqlStmtHandle;
-LPLISTEN_OBJ gCmdListen;
-LPLISTEN_OBJ gFileListen;
 
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID);
 
 int main(int argc, char *argv[]) {
+	WSADATA wsaData;
 	SYSTEM_INFO systemInfo;
+	LPLISTEN_OBJ listenobj;
 	SOCKET acceptSock;
 	LPSESSION session;
 	LPIO_OBJ receiveObj;
@@ -30,7 +30,6 @@ int main(int argc, char *argv[]) {
 	if (!connectSQL())
 		return 1;
 
-	WSADATA wsaData;
 	if (WSAStartup((2, 2), &wsaData) != 0) {
 		printf("WSAStartup() failed with error %d\n", GetLastError());
 		return 1;
@@ -55,13 +54,12 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	gCmdListen = getListenObj(CMD_PORT);
-	gFileListen = getListenObj(FILE_PORT);
+	listenobj = getListenObj(SERVER_PORT);
 
-	if (gCmdListen == NULL || gFileListen == NULL)
+	if (listenobj == NULL)
 		return 1;
 
-	if (CreateIoCompletionPort((HANDLE)gFileListen->sock, gCompletionPort, (ULONG_PTR)&gFileListen, 0) == NULL) {
+	if (CreateIoCompletionPort((HANDLE)listenobj->sock, gCompletionPort, (ULONG_PTR)&listenobj, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		return 1;
 	}
@@ -70,7 +68,7 @@ int main(int argc, char *argv[]) {
 
 	while (true) {
 		//Accept connections
-		if ((acceptSock = WSAAccept(gCmdListen->sock, NULL, NULL, NULL, 0)) == SOCKET_ERROR) {
+		if ((acceptSock = WSAAccept(listenobj->sock, NULL, NULL, NULL, 0)) == SOCKET_ERROR) {
 			printf("WSAAccept() failed with error %d\n", WSAGetLastError());
 			return 1;
 		}
@@ -81,7 +79,7 @@ int main(int argc, char *argv[]) {
 
 		//Associate the accepted socket with the original completion port
 		printf("Socket number %d got connected...\n", acceptSock);
-		session->cmdSock = acceptSock;
+		session->sock = acceptSock;
 		if (CreateIoCompletionPort((HANDLE)acceptSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 			return 1;
@@ -100,8 +98,6 @@ int main(int argc, char *argv[]) {
 			freeIoObject(receiveObj);
 			freeSession(session);
 		}
-
-
 	}
 
 	return 0;
@@ -218,191 +214,80 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 	session->EnListPendingOperation(sendObj);
 }
 
-//void handleAccpetFile(_In_ LPLISTEN_OBJ listenobj, _Inout_ LPSESSION session, _Inout_ LPIO_OBJ acceptObj) {
-//	SOCKADDR_STORAGE *LocalSockaddr = NULL, 
-//		*RemoteSockaddr = NULL;
-//	LPIO_OBJ replyObj = NULL;
-//	char reply[BUFFSIZE];
-//	int LocalSockaddrLen, RemoteSockaddrLen, rc;
-//
-//	//listenobj->lpfnGetAcceptExSockaddrs(
-//	//	acceptObj->buffer,
-//	//	0,
-//	//	SIZE_OF_ADDRESS,
-//	//	SIZE_OF_ADDRESS,
-//	//	(SOCKADDR **)&LocalSockaddr,
-//	//	&LocalSockaddrLen,
-//	//	(SOCKADDR **)&RemoteSockaddr,
-//	//	&RemoteSockaddrLen
-//	//);
-//
-//	session->fileSock = acceptObj->acceptSock;
-//	freeIoObject(acceptObj);
-//
-//	//inherit properties of listen socket 
-//	if (setsockopt(session->fileSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-//		(char *)&gFileListen->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
-//		printf("setsockopt failed with error %d\n", WSAGetLastError());
-//
-//		initMessage(reply, RESPONE, SERVER_FAIL, "setsockopt failed");
-//		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
-//		session->EnListPendingOperation(replyObj);
-//	}
-//
-//	//attach file socket to completionport
-//	if (CreateIoCompletionPort((HANDLE)session->fileSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
-//		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
-//
-//		initMessage(reply, RESPONE, SERVER_FAIL, "CreateIoCompletionPort failed");
-//		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
-//		session->EnListPendingOperation(replyObj);
-//	}
-//
-//	switch (session->fileobj->operation) {
-//		//file for retrive
-//		case FILEOBJ::RETR:
-//			LPIO_OBJ sendFObj;
-//		
-//			sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
-//			sendFObj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
-//			session->EnListPendingOperation(sendFObj);
-//			break;
-//
-//		//file for store
-//		case FILEOBJ::STOR:
-//			LPIO_OBJ recvFobj;
-//			int i = 0;
-//
-//			//Receive and write file in chunks
-//			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
-//
-//				recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
-//				if (recvFobj == NULL) {
-//					initMessage(reply, RESPONE, SERVER_FAIL, "Heap out of memory?");
-//					replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
-//					session->EnListPendingOperation(replyObj);
-//					break;
-//				}
-//
-//				recvFobj->setFileOffset(session->fileobj->bytesRecved);
-//				session->EnListPendingOperation(recvFobj);
-//
-//				session->fileobj->bytesRecved += recvFobj->dataBuff.len;
-//			}
-//	}
-//}
-
-void handleConnect(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ connectobj) {
-	char reply[BUFFSIZE];
-	LPIO_OBJ replyobj, recvFobj, sendFobj;
-
-	if (setsockopt(session->fileobj->fileSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-		(char *)&gFileListen->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
-		printf("setsockopt failed with error %d\n", WSAGetLastError());
-
-		initMessage(reply, RESPONE, SERVER_FAIL, "setsockopt failed");
-		replyobj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
-		session->EnListPendingOperation(replyobj);
-
-		session->closeFile(TRUE);
-		return;
-	}
-
-	switch (session->fileobj->operation) {
-		//file for retrive
-		case FILEOBJ::RETR:
-			LPIO_OBJ sendFObj;
-
-			sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
-			sendFObj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
-			session->EnListPendingOperation(sendFObj);
-			break;
-
-		//file for store
-		case FILEOBJ::STOR:
-			LPIO_OBJ recvFobj;
-			int i = 0;
-
-			//Receive and write file in chunks
-			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
-
-				recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
-				if (recvFobj == NULL) {
-					session->closeFile(TRUE);
-					break;
-				}
-
-				recvFobj->setFileOffset(session->fileobj->bytesRecved);
-				session->EnListPendingOperation(recvFobj);
-
-				session->fileobj->bytesRecved += recvFobj->dataBuff.len;
-			}
-	}
-}
-
-void handleAccpet(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION session, _Inout_ LPIO_OBJ acceptObj) {
+void handleAccept(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION session, _Inout_ LPIO_OBJ acceptObj) {
 
 }
 
 void ProcessPendingOperations(_In_ LPSESSION session) {
 	EnterCriticalSection(&session->cs);
+	std::list<LPIO_OBJ>::iterator itr = session->pending->begin();
+	LPIO_OBJ ioobj;
 	bool noError;
-
-	while (!session->pending->empty()) {
-		LPIO_OBJ ioobj = session->pending->front();
+	
+	while (itr != session->pending->end()) {
+		ioobj = *itr;
 
 		switch (ioobj->operation) {
-		case IO_OBJ::RECV_C:
-			//Receive buffer still have data to process
-			if (!(strstr(ioobj->buffer, ENDING_DELIMITER) == NULL)) {
-				handleRecieve(session, ioobj, strlen(ioobj->buffer));
+			case IO_OBJ::RECV_C:
+				//Not receiving command while receiving file
+				if (session->fileobj && session->fileobj->operation == FILEOBJ::STOR) {
+					itr++;
+					continue;
+				}
 
-				session->pending->pop_front();
-				LeaveCriticalSection(&session->cs);
-				return;
-			}
-			else
-				noError = PostRecv(session->cmdSock, ioobj);
-			break;
-		case IO_OBJ::SEND_C:
-			noError = PostSend(session->cmdSock, ioobj);
-			break;
-		case IO_OBJ::RECV_F:
-			if (!session->fileobj || !PostRecv(session->fileobj->fileSock, ioobj)) {
-				noError = FALSE;
-				session->closeFile(TRUE);
-			}
-			else noError = TRUE;
-			break;
-		case IO_OBJ::WRTE_F:
-			if (!session->fileobj || !PostWrite(session->fileobj->file, ioobj)) {
-				noError = FALSE;
-				session->closeFile(TRUE);
-			}
-			else noError = TRUE;
-			break;
-		case IO_OBJ::SEND_F:
-			if (!session->fileobj || !PostSendFile(session->fileobj->fileSock, session->fileobj->file, ioobj)) {
-				noError = FALSE;
-				session->closeFile(FALSE);
-			}
-			else noError = TRUE;
-			break;
-		case IO_OBJ::CONECT:
-			if (!session->fileobj || !PostConnectEx(session->fileobj, ioobj)) {
-				noError = FALSE;
-				session->closeFile(TRUE);
-			}
-			else noError = TRUE;
-			break;
+				//Receive buffer still have data to process
+				if (!(strstr(ioobj->buffer, ENDING_DELIMITER) == NULL)) {
+					handleRecieve(session, ioobj, strlen(ioobj->buffer));
+
+					session->pending->pop_front();
+					LeaveCriticalSection(&session->cs);
+					return;
+				}
+				else
+					noError = PostRecv(session->sock, ioobj);
+				break;
+			case IO_OBJ::SEND_C:
+				//Not send reply while sending file
+				if (session->fileobj && session->fileobj->operation == FILEOBJ::RETR) {
+					itr++;
+					continue;
+				}
+				noError = PostSend(session->sock, ioobj);
+				break;
+			case IO_OBJ::RECV_F:
+				if (!session->fileobj || !PostRecv(session->sock, ioobj)) {
+					noError = FALSE;
+					session->closeFile(TRUE);
+				}
+				else noError = TRUE;
+				break;
+			case IO_OBJ::WRTE_F:
+				if (!session->fileobj || !PostWrite(session->fileobj->file, ioobj)) {
+					noError = FALSE;
+					session->closeFile(TRUE);
+				}
+				else noError = TRUE;
+				break;
+			case IO_OBJ::SEND_F:
+				if (!session->fileobj || !PostSendFile(session->sock, session->fileobj->file, ioobj)) {
+					noError = FALSE;
+					session->closeFile(FALSE);
+				}
+				else noError = TRUE;
+				break;
 		}
 
 		if (noError)
 			InterlockedIncrement(&session->oustandingOp);
-		else
+		else {
 			freeIoObject(ioobj);
+			shutdown(session->sock, SD_BOTH);
+			if (CancelIoEx((HANDLE)session->sock, NULL))
+				printf("CancelIoEx failed with error %d\n", GetLastError());
+			InterlockedExchange(&session->bclosing, 1);
+		}
 
-		session->pending->pop_front();
+		itr = session->pending->erase(itr);
 	}
 	LeaveCriticalSection(&session->cs);
 }
@@ -410,7 +295,7 @@ void ProcessPendingOperations(_In_ LPSESSION session) {
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 	HANDLE completionPort = (HANDLE)completionPortID;
 	DWORD transferredBytes, flag;
-	LPLISTEN_OBJ listen = NULL;
+	LPLISTEN_OBJ listenobj = NULL;
 	LPSESSION session = NULL;
 	LPIO_OBJ ioobj = NULL;
 	SOCKET s;
@@ -422,74 +307,13 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 		rc = GetQueuedCompletionStatus(completionPort, &transferredBytes, (PULONG_PTR)&key, (LPOVERLAPPED *)&ioobj, INFINITE);
 		if (rc == FALSE) {
 			printf("GetQueuedCompletionStatus() failed with error %d\n", GetLastError());
+			continue;
 		}
-
-		//Check if operation have error
-		switch (ioobj->operation) {
-			case IO_OBJ::RECV_C:
-			case IO_OBJ::SEND_C:
-				session = (LPSESSION)key;
-				s = session->cmdSock; 
-				rc = WSAGetOverlappedResult(s, &ioobj->overlapped, &transferredBytes, FALSE, &flag);
-				if (rc == FALSE) {
-					printf("WSAGetOverlappedResult failed with error %d\n", WSAGetLastError());
-					/*shutdown(s, SD_BOTH);
-					if (CancelIoEx((HANDLE)session->cmdSock, NULL)) {
-						printf("CancelIoEx failed with error %d\n", GetLastError());
-					}*/
-					session->closeFile(TRUE);
-					InterlockedExchange(&session->bclosing, 1);
-				}
-				break;
-			case IO_OBJ::RECV_F:
-			case IO_OBJ::SEND_F:
-				session = (LPSESSION)key;
-				EnterCriticalSection(&session->cs);
-				s = session->fileobj->fileSock;
-				rc = WSAGetOverlappedResult(s, &ioobj->overlapped, &transferredBytes, FALSE, &flag);
-				if (rc == FALSE) {
-					printf("WSAGetOverlappedResult failed with error %d\n", WSAGetLastError());
-					session->closeFile(TRUE);
-				}
-				LeaveCriticalSection(&session->cs);
-				break;
-			case IO_OBJ::WRTE_F:
-				session = (LPSESSION)key;
-				EnterCriticalSection(&session->cs);
-				if (session->fileobj != NULL) {
-					h = session->fileobj->file;
-					rc = GetOverlappedResult(h, &ioobj->overlapped, &transferredBytes, FALSE);
-					if (rc == FALSE) {
-						printf("GetOverlappedResult failed with error %d\n", GetLastError());
-						session->closeFile(TRUE);
-					}
-				}
-				LeaveCriticalSection(&session->cs);
-				break;
-			case IO_OBJ::ACCEPT:
-				s = ((LPLISTEN_OBJ)key)->sock;
-				rc = WSAGetOverlappedResult(s, &ioobj->overlapped, &transferredBytes, FALSE, &flag);
-				if (rc == FALSE)
-					printf("WSAGetOverlappedResult failed with error %d\n", WSAGetLastError());
-				break;
-			case IO_OBJ::CONECT:
-				session = (LPSESSION)key;
-				EnterCriticalSection(&session->cs);
-				if (session->fileobj != NULL) {
-					s = session->fileobj->fileSock;
-					rc = WSAGetOverlappedResult(s, &ioobj->overlapped, &transferredBytes, FALSE, &flag);
-					if (rc == FALSE) {
-						printf("WSAGetOverlappedResult failed with error %d\n", WSAGetLastError());
-						session->closeFile(TRUE);
-					}
-				}
-				LeaveCriticalSection(&session->cs);
-			}
 		
 		if (ioobj->operation == IO_OBJ::ACCEPT) {
-			listen = (LPLISTEN_OBJ) key;
+			listenobj = (LPLISTEN_OBJ) key;
 
-			handleAccpet(listen, session, ioobj);
+			handleAccept(listenobj, session, ioobj);
 
 			if (InterlockedCompareExchange(&session->bclosing, 0, 0) == 0 && session != NULL)
 				ProcessPendingOperations(session);
@@ -514,7 +338,6 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 					case IO_OBJ::RECV_F: handleRecvFile(session, ioobj, transferredBytes); break;
 					case IO_OBJ::SEND_F: hanldeSendFile(session, ioobj, transferredBytes); break;
 					case IO_OBJ::WRTE_F: handleWriteFile(session, ioobj, transferredBytes); break;
-					case IO_OBJ::CONECT: handleConnect(session, ioobj); break;
 				}
 			}
 

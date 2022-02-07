@@ -52,7 +52,7 @@ bool sendFile(LpSession session) {
 	while (totalBytes.QuadPart < session->fileSize) {
 		DWORD bytes = min(session->fileSize - totalBytes.QuadPart, TRANSMITFILE_MAX);
 
-		if (!TransmitFile(session->fileSock, session->hfile, bytes, 0, NULL, NULL, 0)) {
+		if (!TransmitFile(session->sock, session->hfile, bytes, 0, NULL, NULL, 0)) {
 			printf("TransmitFile() failed with error %d\n", WSAGetLastError());
 			session->closeFile();
 			return FALSE;
@@ -74,7 +74,7 @@ bool recvFile(LpSession session) {
 	while (offset < session->fileSize) {
 		char buf[BUFFSIZE] = "";
 
-		transBytes = blockRecv(session->fileSock, buf, BUFFSIZE);
+		transBytes = blockRecv(session->sock, buf, BUFFSIZE);
 		if (transBytes <= 0) {
 			session->closeFile();
 			return FALSE;

@@ -21,7 +21,6 @@ LpSession getSession() {
 
 void FreeSession(LpSession session) {
 	session->closeFile();
-	closesocket(session->cmdSock);
-	closesocket(session->fileSock);
+	closesocket(session->sock);
 	GlobalFree(session);
 }

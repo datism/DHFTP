@@ -33,20 +33,15 @@ int main(int argc, char* argv[]) {
 
 
 	gCmdAddr.sin_family = AF_INET;
-	int cmdPort = CMD_PORT;
+	int cmdPort = SERVER_PORT;
 	gCmdAddr.sin_port = htons(cmdPort);
 	inet_pton(AF_INET, serverIp, &gCmdAddr.sin_addr);
 
-	gFileAddr.sin_family = AF_INET;
-	int filePort = FILE_PORT;
-	gFileAddr.sin_port = htons(filePort);
-	inet_pton(AF_INET, serverIp, &gFileAddr.sin_addr);
-
-	SOCKET cmdSock;
-	cmdSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (connect(cmdSock, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
+	SOCKET sock;
+	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (connect(sock, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
 		printf("\nError: %d", WSAGetLastError());
-		closesocket(cmdSock);
+		closesocket(sock);
 		return 0;
 	}
 	else printf("Connected\n");
@@ -59,7 +54,7 @@ int main(int argc, char* argv[]) {
 		buff[BUFFSIZE];
 
 	session = getSession();
-	session->cmdSock = cmdSock;
+	session->sock = sock;
 
 	printf("1.LOGIN\n");
 	printf("2.LOGOUT\n");
@@ -77,12 +72,12 @@ int main(int argc, char* argv[]) {
 
 	while (1) {
 		chooseService(session, buff);
-		blockSend(session->cmdSock, buff);
+		blockSend(session->sock, buff);
 
 		strcpy_s(buff, BUFFSIZE, "");
 		
 		do {
-			bytes = blockRecv(session->cmdSock, buff, BUFFSIZE);
+			bytes = blockRecv(session->sock, buff, BUFFSIZE);
 			if (!bytes)
 				break;
 

@@ -189,46 +189,24 @@ void handleReply(LpSession session, const char *reply) {
 	int res = atoi(p1);
 
 	switch (res) {
-	case RETRIEVE_SUCCESS:
-		session->fileSize = _atoi64(p2);
-
-		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		printf("Connecting to file port.....\n");
-		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
-			printf("connect() failed with error %d", WSAGetLastError());
-			closesocket(session->fileSock);
+		case RETRIEVE_SUCCESS:
+			session->fileSize = _atoi64(p2);
+			printf("Receiving file.....\n");
+			if (recvFile(session))
+				printf("Recieve file sucessful\n");
+			session->closeFile();
 			break;
-		}
-		printf("Receiving file.....\n");
-		if (recvFile(session))
-			printf("Recieve file sucessful\n");
-		session->closeFile();
-		closesocket(session->fileSock);
-		break;
-	case STORE_SUCCESS:
-		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		printf("Connecting to file port.....\n");
-		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
-			printf("connect() failed with error %d", WSAGetLastError());
-			closesocket(session->fileSock);
+		case STORE_SUCCESS:
+			printf("Sending file.....\n");
+			if(sendFile(session)) 
+				printf("Send file sucessful\n");
+			session->closeFile();
 			break;
-		}
-
-		printf("Sending file.....\n");
-		if(sendFile(session)) 
-			printf("Send file sucessful\n");
-		session->closeFile();
-		closesocket(session->fileSock);
-		break;
-	case FINISH_SEND:
-		session->closeFile();
-		closesocket(session->fileSock);
-		break;
-	default:
-		if (strlen(p2) != 0) {
-			printf("%s\n", p2);
-		}
-		break;
+		default:
+			if (strlen(p2) != 0) {
+				printf("%s\n", p2);
+			}
+			break;
 	}
 }
 

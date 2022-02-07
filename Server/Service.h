@@ -48,9 +48,9 @@ void handleLOGOUT(LPSESSION session, char *reply);
 */
 void handleREGISTER(char *username, char *password, char* reply);
 
-void handleRETRIVE(LPSESSION session, char *clientPort, char *filename, char *reply);
+void handleRETRIVE(LPSESSION session, char * filename, char * reply);
 
-void handleSTORE(LPSESSION session, char *clientPort, char * filename, char  *fileSize, char *reply);
+void handleSTORE(LPSESSION session, char * filename, char * fileSize, char * reply);
 
 /**
 * @brief
@@ -106,8 +106,6 @@ void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply);
 */
 void handlePRINTWDIR(LPSESSION session, char *reply);
 
-bool connectSQL();
-
 /**
 * @brief check the access of current user with the path
 *
@@ -127,6 +125,8 @@ bool checkAccess(LPSESSION session, char *path);
 * @param[out] pathname
 */
 void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
+
+bool connectSQL();
 
 /**
 * @brief check if file's name is valid

@@ -48,9 +48,9 @@ void handleLOGOUT(LPSESSION session, char *reply);
 */
 void handleREGISTER(char *username, char *password, char* reply);
 
-void handleRETRIVE(LPSESSION session, char *filename, char *reply);
+void handleRETRIVE(LPSESSION session, char *clientPort, char *filename, char *reply);
 
-void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
+void handleSTORE(LPSESSION session, char *clientPort, char * filename, char  *fileSize, char *reply);
 
 /**
 * @brief

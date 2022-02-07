@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 #include <iostream>
 #include <sqlext.h>
 #include <sqltypes.h>
@@ -201,11 +202,15 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	}
 }
 
-void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
-	LPIO_OBJ acceptobj;
+void handleRETRIVE(LPSESSION session, char *clientPort, char *filename, char *reply) {
+	LPIO_OBJ connectobj;
 	LPFILEOBJ fileobj;
+	SOCKADDR_IN addr;
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
+	DWORD port;
+	int namelen = sizeof(addr);
+
 
 	//havent login
 	if (strlen(session->username) == 0) {
@@ -216,14 +221,14 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	}
 
 	//Check param
-	if (strlen(filename) == 0) {
+	port = atoi(clientPort);
+	if (port <= 0) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	//Check access and get full path
-	if (!checkAccess(session, filename)) {
-		initParam(reply, NO_ACCESS, "Dont have access to this file");
+	if (!checkName(filename)) {
+		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
 	}
 
@@ -248,28 +253,41 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 
 	GetFileSizeEx(hFile, &fileSize);
 
-	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
-	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, BUFFSIZE);
+	if (getpeername(session->cmdSock, (SOCKADDR *)&addr, &namelen) == SOCKET_ERROR) {
+		printf("getpeername failed with error %d\n", WSAGetLastError());
+		initParam(reply, SERVER_FAIL, "getpeername failed");
+		return;
+	}
 
-	if (fileobj == NULL || acceptobj == NULL) {
+	addr.sin_port = htons(port);
+
+	fileobj = GetFileObj(hFile, &addr, fileSize.QuadPart, FILEOBJ::RETR);
+	connectobj = getIoObject(IO_OBJ::CONECT, NULL, 0);
+
+	if (fileobj == NULL || connectobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Out of memory");
 		return;
 	}
 
-	session->fileobj = fileobj;
-	//accept file connection
-	if (!PostAcceptEx(gFileListen, acceptobj)) {
-		session->closeFile(FALSE);
-		initParam(reply, SERVER_FAIL, "cannot open connection");
+	if (CreateIoCompletionPort((HANDLE)session->fileobj->fileSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
+		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
+		return;
 	}
+
+	session->fileobj = fileobj;
+	session->EnListPendingOperation(connectobj);
 
 	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
-void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
+void handleSTORE(LPSESSION session, char *clientPort, char * filename, char *fileSize, char *reply) {
 	LPFILEOBJ fileobj;
-	LPIO_OBJ acceptobj;
+	SOCKADDR_IN addr;
+	LPIO_OBJ connectobj;
 	LONG64 size;
+	DWORD port;
+	int namelen = sizeof(addr);
 
 	//havent login
 	if (strlen(session->username) == 0) {
@@ -279,18 +297,19 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		session->setWorkingDir("test");
 	}
 
-	//check file name
+	//Check param
+	size = _atoi64(fileSize);
+	port = atoi(clientPort);
+	if (port <= 0 || size <= 0) {
+		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
+		return;
+	}
+
 	if (!checkName(filename)) {
 		initParam(reply, WRONG_SYNTAX, "Invalid file name");
 		return;
 	}
 
-	//Check param
-	size = _atoi64(fileSize);
-	if (strlen(filename) == 0 || strlen(fileSize) == 0 || size == 0) {
-		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
-		return;
-	}
 
 	//Check access and get full path
 	if (!checkAccess(session, filename)) {
@@ -316,28 +335,38 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
 		return;
 	}
+	
+	if (getpeername(session->cmdSock, (SOCKADDR *)&addr, &namelen) == SOCKET_ERROR) {
+		printf("getpeername failed with error %d\n", WSAGetLastError());
+		initParam(reply, SERVER_FAIL, "getpeername failed");
+		return;
+	}
+
+	addr.sin_port = htons(port);
+
+	fileobj = GetFileObj(hFile, &addr, size, FILEOBJ::STOR);
+	connectobj = getIoObject(IO_OBJ::CONECT, NULL, 0);
+
+	if (fileobj == NULL || connectobj == NULL) {
+		initParam(reply, SERVER_FAIL, "Out of memory");
+		return;
+	}
+	session->fileobj = fileobj;
 
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
-	}
-
-	fileobj = GetFileObj(hFile, size, FILEOBJ::STOR);
-	acceptobj = getIoObject(IO_OBJ::ACPT_F, session, NULL, SIZE_OF_ADDRESSES);
-
-	if (fileobj == NULL || acceptobj == NULL) {
-		initParam(reply, SERVER_FAIL, "Out of memory");
+	}if (CreateIoCompletionPort((HANDLE) session->fileobj->fileSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
+		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+		initParam(reply, SERVER_FAIL, "CreateIoCompletionPort() failed");
 		return;
 	}
 
-	session->fileobj = fileobj;
-	//accpect file connection
-	if (!PostAcceptEx(gFileListen, acceptobj)) {
-		session->closeFile(TRUE);
-		initParam(reply, SERVER_FAIL, "cannot open connection");
-	}
+	
+
+	session->EnListPendingOperation(connectobj);
 
 	initParam(reply, STORE_SUCCESS, "CONNECT");
 }
@@ -535,11 +564,33 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 	FindClose(hFind);
 }
 
-void newParseMess(const char *mess, char *cmd, std::list<std::string> &para) {
+void newParseMess(char *mess, char *cmd, std::vector<std::string> &para) {
+	string strMess = mess;
+	string strCmd;
+	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER);
 
+	if (crPos == -1) {
+		string strCmd = strMess.substr(0, lenStr);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+
+		string strP = strMess.substr(crPos + 1, lenStr - crPos - 1);
+		int spPos = strP.find(PARA_DELIMITER);
+
+		while (spPos != -1) {
+			string p = strP.substr(0, spPos);
+			para.push_back(p);
+			int len = strP.length();
+			strP = strP.substr(spPos + 1, len - spPos - 1);
+			spPos = strP.find(PARA_DELIMITER);
+		}
+	}
 }
 
-void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
+void parseMess(char *mess, char *cmd, char *p1, char *p2) {
 	std::string strMess = mess;
 	std::string strCmd, strP1, strP2;
 	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER), spPos = strMess.find(PARA_DELIMITER);
@@ -564,46 +615,47 @@ void parseMess(const char *mess, char *cmd, char *p1, char *p2) {
 }
 
 void handleMess(LPSESSION session, char *mess, char *reply) {
-	char cmd[BUFFSIZE] = "", p1[BUFFSIZE] = "", p2[BUFFSIZE] = "", res[BUFFSIZE] = "";
+	char cmd[BUFFSIZE] = "", res[BUFFSIZE] = "";
+	std::vector<std::string> para;
   
   //Parse message
-	parseMess(mess, cmd, p1, p2);
+	newParseMess(mess, cmd, para);
 
   if (!strcmp(cmd, LOGIN)) {
-		handleLOGIN(session, p1, p2, res);
+		handleLOGIN(session, (char *)para[0].c_str(), (char *)para[1].c_str(), res);
 	}
 	else if (!strcmp(cmd, LOGOUT)) {
 		handleLOGOUT(session, res);
   }
 	else if (!strcmp(cmd, REGISTER)) {
-		handleREGISTER(p1, p2, res);
+		handleREGISTER((char *)para[0].c_str(), (char *)para[1].c_str(), res);
 	}
 	else if (!strcmp(cmd, STORE)) {
-		handleSTORE(session, p1, p2, res);
+		handleSTORE(session, (char *)para[0].c_str(), (char *)para[1].c_str(), (char *)para[2].c_str(), res);
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
-		handleRETRIVE(session, p1, res);
+		handleRETRIVE(session, (char *)para[0].c_str(), (char *)para[1].c_str(), res);
 	}
 	else if (!strcmp(cmd, RENAME)) {
-		handleRENAME(session, p1, p2, res);
+		handleRENAME(session, (char *)para[0].c_str(), (char *)para[1].c_str(), res);
 	}
 	else if (!strcmp(cmd, DELETEFILE)) {
-		handleDELETE(session, p1, res);
+		handleDELETE(session, (char *)para[0].c_str(), res);
 	}
 	else if (!strcmp(cmd, MAKEDIR)) {
-		handleMAKEDIR(session, p1, res);
+		handleMAKEDIR(session, (char *)para[0].c_str(), res);
 	}
 	else if (!strcmp(cmd, REMOVEDIR)) {
-		handleREMOVEDIR(session, p1, res);
+		handleREMOVEDIR(session, (char *)para[0].c_str(), res);
 	}
 	else if (!strcmp(cmd, CHANGEWDIR)) {
-		handleCHANGEWDIR(session, p1, res);
+		handleCHANGEWDIR(session, (char *)para[0].c_str(), res);
 	}
 	else if (!strcmp(cmd, PRINTWDIR)) {
 		handlePRINTWDIR(session, res);
 	}
 	else if (!strcmp(cmd, LISTDIR)) {
-		handleLISTDIR(session, p1, res);
+		handleLISTDIR(session, (char *)para[0].c_str(), res);
 	}
 	else
 		initParam(res, WRONG_SYNTAX, "Wrong header");
@@ -684,7 +736,7 @@ bool checkAccess(LPSESSION session, char *path) {
 }
 
 bool checkName(char *name) {
-	if (NULL == strchr(name, '\\'))
+	if (strlen(name) == 0 || NULL == strchr(name, '\\'))
 		return TRUE;
 	return FALSE;
 }

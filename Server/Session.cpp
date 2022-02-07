@@ -66,24 +66,22 @@ void SESSION::EnListPendingOperation(LPIO_OBJ ioObj){
 void SESSION::closeFile(BOOL deleteFile) {
 	EnterCriticalSection(&this->cs);
 
-	//close file connection
-	if (this->fileSock != INVALID_SOCKET) {
-		/*if (shutdown(this->fileSock, SD_BOTH) == SOCKET_ERROR) {
-			printf("shutdown failed with error %d\n", WSAGetLastError());
-		}
-		if (CancelIoEx((HANDLE)this->fileSock, NULL)) {
-			printf("CancelIoEx failed with error %d\n", WSAGetLastError());
-		}*/
-
-		printf("Closing file socket %d\n", this->fileSock);
-		if (closesocket(this->fileSock) == SOCKET_ERROR) {
-			printf("closesocket failed with error %d\n", WSAGetLastError());
-		}
-		this->fileSock = INVALID_SOCKET;
-	}
-
 	//close file
 	if (this->fileobj != NULL) {
+		//close file connection
+		
+		/*if (shutdown(this->fileSock, SD_BOTH) == SOCKET_ERROR) {
+		printf("shutdown failed with error %d\n", WSAGetLastError());
+		}
+		if (CancelIoEx((HANDLE)this->fileSock, NULL)) {
+		printf("CancelIoEx failed with error %d\n", WSAGetLastError());
+		}*/
+
+		printf("Closing file socket %d\n", this->fileobj->fileSock);
+		if (closesocket(this->fileobj->fileSock) == SOCKET_ERROR) {
+			printf("closesocket failed with error %d\n", WSAGetLastError());
+		}
+
 		//not delete file if file use for retrieve
 		if (!(this->fileobj->operation == FILEOBJ::STOR)) {
 			/*if (CancelIoEx(this->fileobj->file, NULL)) {
@@ -114,7 +112,6 @@ LPSESSION getSession() {
 
 	if (session) {
 		InitializeCriticalSection(&(session->cs));
-		session->fileSock = INVALID_SOCKET;
 		session->pending = new std::list<LPIO_OBJ>();
 	}
 

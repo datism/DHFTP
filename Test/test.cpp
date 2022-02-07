@@ -17,16 +17,5 @@ void closeFile(HANDLE file, BOOLEAN deleteFile) {
 }
 
 int main() {
-	int a = 1;
-	for (; 1; cout << "AA") {
-		switch (a)
-		{
-		case 1: continue;
-		case 2: printf("asdasdasd"); break;
-		default:
-			break;
-		}
 
-		cout << "asdasdasd";
-	}
 }

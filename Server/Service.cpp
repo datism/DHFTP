@@ -689,7 +689,6 @@ bool checkName(char *name) {
 	return FALSE;
 }
 
-
 void initParam(char *param) {}
 
 template <typename P>

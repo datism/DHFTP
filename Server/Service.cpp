@@ -250,7 +250,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	GetFileSizeEx(hFile, &fileSize);
 
 	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
-	sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
+	sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, BUFFSIZE);
 
 	if (fileobj == NULL || sendFObj == NULL) {
 		initParam(reply, SERVER_FAIL, "Out of memory");
@@ -262,7 +262,7 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	sendFObj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
 	session->EnListPendingOperation(sendFObj);
 
-	initParam(reply, RETRIEVE_SUCCESS, &session, fileobj->size);
+	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
 }
 
 
@@ -347,7 +347,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 		session->fileobj->bytesRecved += recvFobj->dataBuff.len;
 	}
 
-	initParam(reply, STORE_SUCCESS, &session);
+	initParam(reply, STORE_SUCCESS, "receive");
 }
 
 void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {

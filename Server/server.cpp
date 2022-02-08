@@ -248,10 +248,6 @@ void ProcessPendingOperations(_In_ LPSESSION session) {
 				break;
 			case IO_OBJ::SEND_C:
 				//Not send reply while sending file
-				if (session->fileobj && session->fileobj->operation == FILEOBJ::RETR) {
-					itr++;
-					continue;
-				}
 				noError = PostSend(session->sock, ioobj);
 				break;
 			case IO_OBJ::RECV_F:

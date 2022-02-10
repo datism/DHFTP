@@ -5,6 +5,9 @@
 typedef struct {
 	SOCKET sock;
 
+	LONG pendingAcceptCount;
+	WSAEVENT acceptEvent;
+
 	// Pointers to Microsoft specific extensions.
 	LPFN_ACCEPTEX lpfnAcceptEx;
 	LPFN_GETACCEPTEXSOCKADDRS lpfnGetAcceptExSockaddrs;

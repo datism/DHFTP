@@ -29,7 +29,7 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	if (session->hfile != INVALID_HANDLE_VALUE)
 		session->closeFile();
 
-	session->hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	session->hfile = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (session->hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
@@ -180,7 +180,7 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 }
 
 void handleReply(LpSession session, const char *reply) {
-	char header[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
+	char header[BUFFSIZE] = "", p1[BUFFSIZE] = "", p2[BUFFSIZE] = "", request[BUFFSIZE] = "";
 	parseReply(reply, header, p1, p2);
 
 	if (strcmp(header, "RES") || strlen(p1) == 0)
@@ -206,6 +206,8 @@ void handleReply(LpSession session, const char *reply) {
 		closesocket(session->fileSock);
 		break;
 	case STORE_SUCCESS:
+		initMessage(request, CONNECT, p2);
+
 		session->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		printf("Connecting to file port.....\n");
 		if (connect(session->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
@@ -213,6 +215,7 @@ void handleReply(LpSession session, const char *reply) {
 			closesocket(session->fileSock);
 			break;
 		}
+		blockSend(session->fileSock, request);
 
 		printf("Sending file.....\n");
 		if(sendFile(session)) 

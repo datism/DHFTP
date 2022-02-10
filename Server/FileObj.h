@@ -6,8 +6,6 @@ typedef struct FILEOBJ {
 	SOCKET fileSock;
 	HANDLE file;
 
-	SOCKADDR clientAddr;
-
 	int operation;
 	enum OP {
 		RETR,
@@ -19,9 +17,8 @@ typedef struct FILEOBJ {
 	volatile LONG64 bytesRecved;
 	volatile LONG64 bytesWritten;
 
-	LPFN_CONNECTEX lpfnConnectEx;
 } FILEOBJ, *LPFILEOBJ;
 
-_Ret_maybenull_ LPFILEOBJ GetFileObj(_In_ HANDLE hfile, _In_ LPSOCKADDR_IN addr, _In_ LONG64 size, _In_ FILEOBJ::OP op);
+_Ret_maybenull_ LPFILEOBJ GetFileObj(_In_ HANDLE hfile, _In_ LONG64 size, _In_ FILEOBJ::OP op);
 void FreeFileObj(_In_ LPFILEOBJ fileobj);
 

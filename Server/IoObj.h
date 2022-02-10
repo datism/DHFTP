@@ -3,9 +3,6 @@
 #include "ListenObj.h"
 #include "FileObj.h"
 
-typedef struct SESSION *LPSESSION;
-
-
 typedef struct IO_OBJ {
 	WSAOVERLAPPED overlapped;
 
@@ -21,11 +18,11 @@ typedef struct IO_OBJ {
 	enum OP {
 		RECV_C,
 		SEND_C,
+		ACPT_C,
 		RECV_F,
 		SEND_F,
 		WRTE_F,
-		ACCEPT,
-		CONECT
+		ACPT_F
 	};
 
 	void setBufferSend(_In_z_ char *i_buffer);
@@ -42,4 +39,3 @@ bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj);
 bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj);
 bool PostSendFile(_In_ SOCKET sock, _In_ HANDLE hfile, _In_ LPIO_OBJ sendFObj);
 bool PostAcceptEx(_In_ LPLISTEN_OBJ listen, LPIO_OBJ acceptobj);
-bool PostConnectEx(_In_ LPFILEOBJ fileobj, LPIO_OBJ ioobj);

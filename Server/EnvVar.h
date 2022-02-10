@@ -1,5 +1,6 @@
 #pragma once
 #include <sqltypes.h>
+#include <set>
 #include "ListenObj.h"
 
 #define SQL_RESULT_LEN 240
@@ -10,6 +11,7 @@
 #define FILE_PORT 6600
 #define BUFFSIZE 4096
 
+#define	MAX_PENDING_ACCEPT 500
 #define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
 #define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
 #define TRANSMITFILE_MAX ((2<<30) - 1)
@@ -36,11 +38,14 @@
 #define LISTDIR "LIST"
 #define RESPONE "RES"
 #define RECEIVE "RECV"
+#define CONNECT "CNCT"
 
 extern LPLISTEN_OBJ gCmdListen;
 extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;
+extern CRITICAL_SECTION gCriticalSection;
+extern std::set<ULONG> gSessionSet;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,

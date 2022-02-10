@@ -19,7 +19,7 @@ void handleMess(LPSESSION session, char *mess, char *reply);
 * @param[out] p1 paramater1
 * @param[out] p2 paramater2
 */
-void parseMess(const char *mess, char *cmd, char *p1, char *p2);
+void parseMess(char *mess, char *cmd, char *p1, char *p2);
 
 /**
 * @brief
@@ -48,9 +48,9 @@ void handleLOGOUT(LPSESSION session, char *reply);
 */
 void handleREGISTER(char *username, char *password, char* reply);
 
-void handleRETRIVE(LPSESSION session, char *clientPort, char *filename, char *reply);
+void handleRETRIVE(LPSESSION session, char *filename, char *reply);
 
-void handleSTORE(LPSESSION session, char *clientPort, char * filename, char  *fileSize, char *reply);
+void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
 
 /**
 * @brief

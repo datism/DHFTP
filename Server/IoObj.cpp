@@ -108,7 +108,7 @@ bool PostAcceptEx(LPLISTEN_OBJ listen, LPIO_OBJ acceptobj) {
 		listen->sock,
 		acceptobj->acceptSock,
 		acceptobj->buffer,
-		0,
+		acceptobj->dataBuff.len - SIZE_OF_ADDRESSES,
 		SIZE_OF_ADDRESS,
 		SIZE_OF_ADDRESS,
 		&bytes,
@@ -120,27 +120,6 @@ bool PostAcceptEx(LPLISTEN_OBJ listen, LPIO_OBJ acceptobj) {
 			printf("AcceptEx() failed with error %d\n", WSAGetLastError());
 			return FALSE;
 		}
-	}
-
-	return TRUE;
-}
-
-bool PostConnectEx(LPFILEOBJ fileobj, LPIO_OBJ ioobj) {
-	DWORD bytes;
-	int rc;
-	rc = fileobj->lpfnConnectEx(
-		fileobj->fileSock,
-		&fileobj->clientAddr,
-		sizeof(fileobj->clientAddr),
-		NULL,
-		NULL,
-		&bytes,
-		&ioobj->overlapped
-		);
-
-	if (rc == FALSE) {
-		printf("ConnectEx failed with error %d\n", WSAGetLastError());
-		return FALSE;
 	}
 
 	return TRUE;

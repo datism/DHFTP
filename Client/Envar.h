@@ -24,6 +24,7 @@
 #define LISTDIR "LIST"
 #define RESPONE "RES"
 #define RECEIVE "RECV"
+#define CONNECT "CNCT"
 
 extern sockaddr_in gCmdAddr;
 extern sockaddr_in gFileAddr;

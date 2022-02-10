@@ -16,6 +16,8 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		return NULL;
 	}
 
+	newObj->acceptEvent = WSACreateEvent();
+
 	if ((newObj->sock = WSASocketW(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
 		printf("WSASocket() failed with error %d\n", WSAGetLastError());
 		return NULL;
@@ -28,10 +30,6 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		printf("bind() failed with error %d\n", WSAGetLastError());
 		return NULL;
 	}
-
-	sockaddr add;
-	int size = sizeof(add);
-	getsockname(newObj->sock, &add, &size);
 
 	//Load Acceptex
 	rc = WSAIoctl(

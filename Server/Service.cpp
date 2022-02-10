@@ -342,11 +342,12 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	}
 
 	session->fileobj = fileobj;
-	//accpect file connection
-	if (!PostAcceptEx(gFileListen, acceptobj)) {
-		session->closeFile(TRUE);
-		initParam(reply, SERVER_FAIL, "cannot open connection");
-	}
+
+	EnterCriticalSection(&gCriticalSection);
+	gFileListen->count++;
+	WSASetEvent(gFileListen->acceptEvent);
+	LeaveCriticalSection(&gCriticalSection);
+
 
 	initParam(reply, STORE_SUCCESS, (ULONG_PTR)session);
 }

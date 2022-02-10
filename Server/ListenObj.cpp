@@ -78,3 +78,11 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 
 	return newObj;
 }
+
+void FreeListenObj(LPLISTEN_OBJ listenobj) {
+	printf("Close listen socket %d\n", listenobj->sock);
+	if (closesocket(listenobj->sock) == SOCKET_ERROR) {
+		printf("closesocket failed with error %d\n", WSAGetLastError());
+	}
+	HeapFree(GetProcessHeap(), NULL, listenobj);
+}

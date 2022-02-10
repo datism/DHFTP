@@ -85,19 +85,17 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	//for (int i = 0; i < gInitialAccepts; ++i) {
-	//	acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
-	//	if (acceptobj == NULL) {
-	//		printf("Out of memory!\n");
-	//		return -1;
-	//	}
+	for (int i = 0; i < gInitialAccepts; ++i) {
+		acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
+		if (acceptobj == NULL) {
+			printf("Out of memory!\n");
+			return -1;
+		}
 
-	//	if (!PostAcceptEx(gCmdListen, acceptobj)) {
-	//		return -1;
-	//	}
-
-	//	InterlockedIncrement(&gCmdListen->pendingAcceptCount);
-	//}
+		if (!PostAcceptEx(gCmdListen, acceptobj)) {
+			return -1;
+		}
+	}
 
 	printf("Server started\n");
 
@@ -191,35 +189,42 @@ int main(int argc, char *argv[]) {
 		//		interval = 0;
 		//	}
 		//}
-		else
-		{
+		else {
 			int index;
 			index = rc - WAIT_OBJECT_0;
-			for (; index < waitCount; index++)
-			{
+			for (; index < waitCount; index++) {
 				rc = WaitForSingleObject(waitEvents[index], 0);
-				if (rc == WAIT_FAILED || rc == WAIT_TIMEOUT)
-				{
+				if (rc == WAIT_FAILED || rc == WAIT_TIMEOUT) {
 					continue;
 				}
-				if (index < (int)systemInfo.dwNumberOfProcessors)
-				{
-					// One of the completion threads exited
-					//   This is bad so just bail - a real server would want
-					//   to gracefully exit but this is just a sample ...
+				//shutdown
+				if (index < (int)systemInfo.dwNumberOfProcessors) {
+					FreeListenObj(gCmdListen);
+					FreeListenObj(gFileListen);
+
+					EnterCriticalSection(&gCriticalSection);
+					for (ULONG session : gSessionSet)
+						freeSession((LPSESSION)session);
+					LeaveCriticalSection(&gCriticalSection);
+
+					DeleteCriticalSection(&gCriticalSection);
+
+					WSACleanup();
+
 					ExitProcess(-1);
 				}
-				else
-				{
-					// An FD_ACCEPT event occurred
+				else {
+					//New cmd connection and no oustanding acceptEx
 					if (gCmdListen->acceptEvent == waitEvents[index]) {
 						rc = WSAEnumNetworkEvents(gCmdListen->sock, gCmdListen->acceptEvent, &sockEvent);
+
 						if (rc == SOCKET_ERROR)
 							printf("WSAEnumNetworkEvents failed: %d\n", WSAGetLastError());
 						if (sockEvent.lNetworkEvents & FD_ACCEPT) {
 							EnterCriticalSection(&gCriticalSection);
-							if (gSessionSet.size() + gInitialAccepts < 10000) {
-								for (int i = 0; i < gInitialAccepts && gCmdListen->pendingAcceptCount < MAX_PENDING_ACCEPT; ++i) {
+							//Dont accept connection if session count over limit
+							if (gSessionSet.size() + gInitialAccepts < MAX_CONCURENT_SESSION) {
+								for (int i = 0; i < gInitialAccepts; ++i) {
 									acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
 									if (acceptobj == NULL) {
 										printf("Out of memory!\n");
@@ -228,31 +233,37 @@ int main(int argc, char *argv[]) {
 									if (!PostAcceptEx(gCmdListen, acceptobj)) {
 										return -1;
 									}
-									InterlockedIncrement(&gCmdListen->pendingAcceptCount);
 								}
 							}
 							LeaveCriticalSection(&gCriticalSection);
 						}
-
 					}
+					//Open file connection
 					else if (gFileListen->acceptEvent == waitEvents[index]) {
-						acceptobj = getIoObject(IO_OBJ::ACPT_F, NULL, BUFFSIZE);
-						if (acceptobj == NULL) {
-							printf("Out of memory!\n");
-							return -1;
+						EnterCriticalSection(&gCriticalSection);
+						WSAResetEvent(gFileListen->acceptEvent);
+
+						while (gFileListen->count != 0) {
+							acceptobj = getIoObject(IO_OBJ::ACPT_F, NULL, BUFFSIZE);
+							if (acceptobj == NULL) {
+								printf("Out of memory!\n");
+								return -1;
+							}
+
+							if (!PostAcceptEx(gFileListen, acceptobj)) {
+								return -1;
+							}
+
+							gFileListen->count--;
 						}
 
-						if (!PostAcceptEx(gFileListen, acceptobj)) {
-							return -1;
-						}
+						LeaveCriticalSection(&gCriticalSection);
 					}
-				
 				}
 			}
 		}
 	}
 
-	WSACleanup();
 	return 0;
 }
 

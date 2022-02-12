@@ -32,7 +32,7 @@ int blockRecv(SOCKET sock, char *recvBuff, DWORD length) {
 
 	if (strlen(recvBuff) != 0)
 		dataBuff.buf = recvBuff + strlen(recvBuff);
-	else 
+	else
 		dataBuff.buf = recvBuff;
 	dataBuff.len = length;
 
@@ -87,6 +87,6 @@ bool recvFile(SOCKET sock, HANDLE hfile, LONG64 size) {
 
 		offset += transBytes;
 	}
-	
+
 	return TRUE;
 }

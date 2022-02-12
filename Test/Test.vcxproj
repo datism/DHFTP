@@ -19,7 +19,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FileObj.cpp" />
+    <ClCompile Include="Io.cpp" />
+    <ClCompile Include="IoObj.cpp" />
+    <ClCompile Include="Session.cpp" />
     <ClCompile Include="test.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Envar.h" />
+    <ClInclude Include="FileObj.h" />
+    <ClInclude Include="Io.h" />
+    <ClInclude Include="IoObj.h" />
+    <ClInclude Include="Session.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{90C17E1C-A9CE-4832-A1C2-CF3115CCEC3D}</ProjectGuid>

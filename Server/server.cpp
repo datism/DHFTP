@@ -26,9 +26,7 @@ int gInitialAccepts = 100;
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID);
 
 int main(int argc, char *argv[]) {
-	WSADATA wsaData;
 	SYSTEM_INFO systemInfo;
-	LPLISTEN_OBJ listenobj;
 	SOCKET acceptSock;
 	WSANETWORKEVENTS sockEvent;
 	LPSESSION session;
@@ -39,6 +37,7 @@ int main(int argc, char *argv[]) {
 	if (!connectSQL())
 		return 1;
 
+	WSADATA wsaData;
 	if (WSAStartup((2, 2), &wsaData) != 0) {
 		printf("WSAStartup() failed with error %d\n", GetLastError());
 		return 1;
@@ -66,9 +65,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	listenobj = getListenObj(SERVER_PORT);
+	gCmdListen = getListenObj(CMD_PORT);
+	gFileListen = getListenObj(FILE_PORT);
 
-	if (listenobj == NULL)
+	if (gCmdListen == NULL || gFileListen == NULL)
 		return 1;
 
 	WSAEventSelect(gCmdListen->sock, gCmdListen->acceptEvent, FD_ACCEPT | FD_CLOSE);
@@ -509,12 +509,10 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
 
 void ProcessPendingOperations(_In_ LPSESSION session) {
 	EnterCriticalSection(&session->cs);
-	std::list<LPIO_OBJ>::iterator itr = session->pending->begin();
-	LPIO_OBJ ioobj;
 	bool noError;
-	
-	while (itr != session->pending->end()) {
-		ioobj = *itr;
+
+	while (!session->pending->empty()) {
+		LPIO_OBJ ioobj = session->pending->front();
 
 		switch (ioobj->operation) {
 		case IO_OBJ::RECV_C:
@@ -565,15 +563,10 @@ void ProcessPendingOperations(_In_ LPSESSION session) {
 
 		if (noError)
 			InterlockedIncrement(&session->oustandingOp);
-		else {
+		else
 			freeIoObject(ioobj);
-			shutdown(session->sock, SD_BOTH);
-			if (CancelIoEx((HANDLE)session->sock, NULL))
-				printf("CancelIoEx failed with error %d\n", GetLastError());
-			InterlockedExchange(&session->bclosing, 1);
-		}
 
-		itr = session->pending->erase(itr);
+		session->pending->pop_front();
 	}
 	LeaveCriticalSection(&session->cs);
 }

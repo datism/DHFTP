@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 
 typedef struct FILEOBJ {
+	SOCKET fileSock;
 	HANDLE file;
 
 	int operation;

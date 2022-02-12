@@ -632,9 +632,6 @@ void handleMess(LPSESSION session, char *mess, char *reply) {
 			p2 = para[1].c_str();
 			handleLOGIN(session, p1, p2, res);
 		}
-
-		if (!strP.empty())
-			para.push_back(strP);
 	}
 	else if (!strcmp(cmd, LOGOUT)) {
 		if (para.size() != 0) {

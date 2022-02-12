@@ -18,6 +18,7 @@ void SESSION::EnListPendingOperation(LPIO_OBJ ioObj){
 
 void SESSION::closeFile(BOOL deleteFile) {
 	EnterCriticalSection(&this->cs);
+
 	//close file
 	if (this->fileobj != NULL) {
 		//not delete file if file use for retrieve
@@ -30,6 +31,7 @@ void SESSION::closeFile(BOOL deleteFile) {
 				printf("SetFileInformationByHandle failed with error %d\n", GetLastError());
 			}
 		}
+
 		FreeFileObj(this->fileobj);
 		fileobj = NULL;
 	}
@@ -62,8 +64,8 @@ void freeSession(LPSESSION session) {
 	session->closeFile(TRUE);
 
 	//close connection
-	printf("Closing socket %d\n", session->sock);
-	if (closesocket(session->sock) == SOCKET_ERROR) {
+	printf("Closing cmd socket %d\n", session->cmdSock);
+	if (closesocket(session->cmdSock) == SOCKET_ERROR) {
 		printf("closesocket failed with error %d\n", WSAGetLastError());
 	}
 

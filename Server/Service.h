@@ -48,8 +48,6 @@ void newParseMess(char *mess, char *cmd, std::vector<std::string>& para);
 */
 bool checkAccess(LPSESSION session,const char *path, char *fullPath);
 
-bool connectSQL();
-
 /**
 * @brief check if file's name is valid
 *

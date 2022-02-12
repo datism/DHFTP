@@ -9,7 +9,7 @@ typedef struct IO_OBJ {
 	//for recv, send and write
 	WSABUF dataBuff;
 	_Field_z_
-		CHAR *buffer;
+	CHAR *buffer;
 
 	//for accept
 	SOCKET acceptSock;
@@ -30,8 +30,10 @@ typedef struct IO_OBJ {
 	void setFileOffset(_In_ LONG64 fileOffset);
 } IO_OBJ, *LPIO_OBJ;
 
+
 _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);
 void freeIoObject(_In_ LPIO_OBJ ioobj);
+
 bool PostSend(_In_ SOCKET sock, _In_ LPIO_OBJ sendObj);
 bool PostRecv(_In_ SOCKET sock, _In_ LPIO_OBJ recvObj);
 bool PostWrite(_In_ HANDLE hfile, _In_ LPIO_OBJ writeObj);

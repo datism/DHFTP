@@ -3,24 +3,6 @@
 #include <MSWSock.h>
 #include "EnvVar.h"
 
-void IO_OBJ::setBufferSend(char *i_buffer) {
-	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
-	this->dataBuff.buf = this->buffer;
-	this->dataBuff.len = strlen(this->buffer);
-}
-
-void IO_OBJ::setBufferRecv(char *i_buffer) {
-	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
-	int length = strlen(buffer);
-	this->dataBuff.buf = this->buffer + length;
-	this->dataBuff.len = BUFFSIZE - length;
-}
-
-void IO_OBJ::setFileOffset(LONG64 fileOffset) {
-	this->overlapped.Offset = fileOffset & 0xFFFF'FFFF;
-	this->overlapped.OffsetHigh = (fileOffset >> 32) & 0xFFFF'FFFF;
-}
-
 LPIO_OBJ getIoObject(IO_OBJ::OP operation, char * buffer, DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
@@ -44,6 +26,24 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, char * buffer, DWORD length) {
 
 void freeIoObject(LPIO_OBJ ioobj) {
 	HeapFree(GetProcessHeap(), NULL, ioobj);
+}
+
+void IO_OBJ::setBufferSend(char *i_buffer) {
+	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
+	this->dataBuff.buf = this->buffer;
+	this->dataBuff.len = strlen(this->buffer);
+}
+
+void IO_OBJ::setBufferRecv(char *i_buffer) {
+	strcpy_s(this->buffer, BUFFSIZE, i_buffer);
+	int length = strlen(buffer);
+	this->dataBuff.buf = this->buffer + length;
+	this->dataBuff.len = BUFFSIZE - length;
+}
+
+void IO_OBJ::setFileOffset(LONG64 fileOffset) {
+	this->overlapped.Offset = fileOffset & 0xFFFF'FFFF;
+	this->overlapped.OffsetHigh = (fileOffset >> 32) & 0xFFFF'FFFF;
 }
 
 bool PostSend(SOCKET sock,LPIO_OBJ sendObj) {

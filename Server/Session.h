@@ -7,7 +7,7 @@
 #include "IoObj.h"
 
 typedef struct SESSION {
-	SOCKET sock;
+	SOCKET cmdSock;
 
 	char username[MAX_PATH];
 	char workingDir[MAX_PATH];
@@ -24,8 +24,9 @@ typedef struct SESSION {
 	void setUsername(const char *iUsername);
 	void setWorkingDir(const char *iWorkingDir);
 	void EnListPendingOperation(_In_ LPIO_OBJ ioObj);
+	//void ProcessPendingOperations();
 
-	//close file
+	//close file and close file connection
 	void closeFile(BOOL deletefile);
 } SESSION, *LPSESSION;
 

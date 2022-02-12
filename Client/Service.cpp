@@ -25,7 +25,7 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	if (session->fileobj != NULL)
 		session->closeFile(FALSE);
 
-	hfile = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
@@ -38,6 +38,8 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 
 		session->fileobj = GetFileObj(hfile, fileSize.QuadPart, FILEOBJ::STOR);
 		initMessage(sendBuff, STORE, fileName, session->fileobj->size);
+
+		return true;
 	}
 }
 
@@ -55,10 +57,9 @@ bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) 
 	else {
 		session->fileobj = GetFileObj(hfile, 0, FILEOBJ::RETR);
 		initMessage(sendBuff, RETRIEVE, fileName);
-	}
 
-	
-	return true;
+		return true;
+	}
 }
 
 void RenameRequest(char *sendBuf, const char *serverFile, const char *newname) {
@@ -96,13 +97,13 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 
 	while (1) {
 		printf("\nChoose service: ");
-		scanf_s("%d", &choice);
-		/*choice = 5;*/
+		if (scanf_s("%d", &choice) == 0)
+			choice = 0;
 		printf("\n");
 
 		//Clear input buffer
 		int c;
-		while ((c = getchar()) != '\n');
+		while ((c = getchar()) != '\n' && c != EOF) {}
 
 		switch (choice) {
 			//Login
@@ -177,7 +178,7 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 				ListDirRequest(sendBuff, p1);
 				return;
 			//Invalid input
-		default: {printf("Invalid input, choose again.\n"); continue; }
+			default: printf("Invalid input, choose again.\n"); 
 		}
 	}
 
@@ -248,6 +249,9 @@ void handleReply(LpSession session, const char *reply) {
 		session->closeFile(FALSE);
 		break;
 	default:
+		if (session->fileobj != NULL)
+			session->closeFile(TRUE);
+
 		if (para.size() > 1) {
 			p2 = para[1].c_str();
 			printf("%s\n", p2);

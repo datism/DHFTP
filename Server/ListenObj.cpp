@@ -9,7 +9,7 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		guidGetAcceptExSockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
 	SOCKADDR_IN addr;
 	int rc;
-	DWORD bytes;
+	DWORD bytes, dontlinger;
 
 	if ((newObj = (LPLISTEN_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(LISTEN_OBJ))) == NULL) {
 		printf("HeapAlloc() failed with error %d", GetLastError());
@@ -28,6 +28,13 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 	inet_pton(AF_INET, SERVER_ADDR, &addr.sin_addr);
 	if (bind(newObj->sock, (PSOCKADDR)&addr, sizeof(addr)) == SOCKET_ERROR) {
 		printf("bind() failed with error %d\n", WSAGetLastError());
+		return NULL;
+	}
+
+	//Graceful close
+	dontlinger = 0;
+	if (setsockopt(newObj->sock, SOL_SOCKET, SO_DONTLINGER,(const char *)&dontlinger, sizeof(DWORD)) == SOCKET_ERROR) {
+		printf("setsockopt failed with error %d\n", WSAGetLastError());
 		return NULL;
 	}
 

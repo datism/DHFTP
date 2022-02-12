@@ -110,51 +110,6 @@ int main(int argc, char *argv[]) {
 			printf("WSAWaitForMultipleEvents failed: %d\n", WSAGetLastError());
 			break;
 		}
-		//else if (rc == WAIT_TIMEOUT)
-		//{
-		//	interval++;
-		//	PrintStatistics();
-		//	if (interval == 36)
-		//	{
-		//		int optval, optlen;
-
-		//		// For TCP, cycle through all the outstanding AcceptEx operations
-		//		//   to see if any of the client sockets have been connected but
-		//		//   haven't received any data. If so, close them as they could be
-		//		//   a denial of service attack.
-		//		listenobj = ListenSockets;
-		//		while (listenobj)
-		//		{
-		//			EnterCriticalSection(&listenobj->ListenCritSec);
-		//			acceptobj = listenobj->PendingAccepts;
-
-		//			while (acceptobj)
-		//			{
-		//				optlen = sizeof(optval);
-		//				rc = getsockopt(acceptobj->sclient, SOL_SOCKET, SO_CONNECT_TIME, (char *)&optval, &optlen);
-		//				if (rc == SOCKET_ERROR)
-		//				{
-		//					fprintf(stderr, "getsockopt: SO_CONNECT_TIME failed: %d\n", WSAGetLastError());
-		//				}
-		//				else
-		//				{
-		//					// If the socket has been connected for more than 5 minutes,
-		//					//    close it. If closed, the AcceptEx call will fail in the completion thread.
-		//					if ((optval != 0xFFFFFFFF) && (optval > 300))
-		//					{
-		//						printf("closing stale handle\n");
-		//						closesocket(acceptobj->sclient);
-		//						acceptobj->sclient = INVALID_SOCKET;
-		//					}
-		//				}
-		//				acceptobj = acceptobj->next;
-		//			}
-		//			LeaveCriticalSection(&listenobj->ListenCritSec);
-		//			listenobj = listenobj->next;
-		//		}
-		//		interval = 0;
-		//	}
-		//}
 		else {
 			int index;
 			index = rc - WAIT_OBJECT_0;

@@ -1,30 +1,15 @@
 #pragma once
-#include <sqltypes.h>
-#include <set>
-#include "ListenObj.h"
-
-#define SQL_RESULT_LEN 240
-#define SQL_RETURN_CODE_LEN 1000
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500
 #define FILE_PORT 6600
 #define BUFFSIZE 4096
-
-#define	MAX_PENDING_ACCEPT 500
-#define MAX_CONCURENT_SESSION 15000
-#define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
-#define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
 #define TRANSMITFILE_MAX ((2<<30) - 1)
-
-#define MAX_SEND_PER_SESSION 5
-#define MAX_IOOBJ_PER_FILEOBJ 10
-
+#define MAX_CLIENT 10000
 
 #define ENDING_DELIMITER "\r\n\r\n"
 #define HEADER_DELIMITER "\r\n"
 #define PARA_DELIMITER "\r"
-
 
 #define LOGIN "LOGI"
 #define LOGOUT "LOGO"
@@ -42,25 +27,21 @@
 #define RECEIVE "RECV"
 #define CONNECT "CNCT"
 
-extern LPLISTEN_OBJ gCmdListen;
-extern LPLISTEN_OBJ gFileListen;
-extern HANDLE gCompletionPort;
-extern SQLHANDLE gSqlStmtHandle;
-extern CRITICAL_SECTION gCriticalSection;
-extern std::set<ULONG> gSessionSet;
+extern sockaddr_in gCmdAddr;
+extern sockaddr_in gFileAddr;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,
 	LOGOUT_SUCCESS = 111,
 	REGISTER_SUCCESS = 112,
-	
+
 	NOT_LOGIN = 310,
 	ALREADY_LOGIN = 311,
 	USER_NOT_EXIST = 312,
 	USER_ALREADY_EXIST = 313,
 	WRONG_PASSWORD = 314,
 	EMPTY_FIELD = 315,
-	
+
 	RETRIEVE_SUCCESS = 220,
 	STORE_SUCCESS = 221,
 	FINISH_SEND = 120,

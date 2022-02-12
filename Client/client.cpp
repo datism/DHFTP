@@ -53,10 +53,9 @@ int main(int argc, char* argv[]) {
 
 	LpSession session;
 	int bytes;
-	bool cont;
 	char *pos = NULL,
 		*reply = NULL,
-		buff[BUFFSIZE];
+		buff[BUFFSIZE] = "";
 
 	session = getSession();
 	session->cmdSock = cmdSock;
@@ -68,11 +67,11 @@ int main(int argc, char* argv[]) {
 	printf("5.RETRIEVE FILE\n");
 	printf("6.RENAME FILE\n");
 	printf("7.DELETE FILE\n");
-	printf("8.MAKE DIR\n");
-	printf("9.REMOVE DIR\n");
-	printf("10.CHANGE WROKING DIR\n");
-	printf("11.PRINT WORKING DIR\n");
-	printf("12.LIST DIR\n\n");
+	printf("8.MAKE DIRECTORY\n");
+	printf("9.REMOVE DIRECTORY\n");
+	printf("10.CHANGE WROKING DIRECTORY\n");
+	printf("11.PRINT WORKING DIRECTORY\n");
+	printf("12.LIST DIRECTORY\n\n");
 
 
 	while (1) {

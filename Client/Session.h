@@ -1,14 +1,12 @@
 #pragma once
 #include <WinSock2.h>
+#include "FileObj.h"
 
 typedef struct Session{
 	SOCKET cmdSock;
-	SOCKET fileSock;
-
-	HANDLE hfile;
-	LONG64 fileSize;
-
-	void closeFile();
+	LPFILEOBJ fileobj;
+	
+	void closeFile(BOOL deleteFile);
 } Session, *LpSession;
 
 LpSession getSession();

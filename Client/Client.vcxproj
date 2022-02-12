@@ -111,14 +111,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />
+    <ClCompile Include="FileObj.cpp" />
     <ClCompile Include="Io.cpp" />
     <ClCompile Include="Service.cpp" />
     <ClCompile Include="Session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Envar.h" />
+    <ClInclude Include="FileObj.h" />
     <ClInclude Include="Io.h" />
-    <ClInclude Include="Network.h" />
     <ClInclude Include="Service.h" />
     <ClInclude Include="Session.h" />
   </ItemGroup>

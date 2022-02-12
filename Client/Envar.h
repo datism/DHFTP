@@ -6,9 +6,9 @@
 #define BUFFSIZE 4096
 #define TRANSMITFILE_MAX ((2<<30) - 1)
 
-#define ENDING_DELIMITER "\r\n"
-#define HEADER_DELIMITER "\r"
-#define PARA_DELIMITER " "
+#define ENDING_DELIMITER "\r\n\r\n"
+#define HEADER_DELIMITER "\r\n"
+#define PARA_DELIMITER "\r"
 
 #define LOGIN "LOGI"
 #define LOGOUT "LOGO"
@@ -58,6 +58,7 @@ enum REPLY_CODE {
 	NAME_WRONG_FORMAT = 323,
 	TRANSMIT_FAIL = 324,
 	DIR_NOT_EMPTY = 325,
+	FiLE_BUSY = 326,
 
 	WRONG_SYNTAX = 330,
 	SERVER_FAIL = 331

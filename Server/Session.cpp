@@ -16,78 +16,13 @@ void SESSION::EnListPendingOperation(LPIO_OBJ ioObj){
 	LeaveCriticalSection(&this->cs);
 }
 
-//void SESSION::ProcessPendingOperations() {
-//	EnterCriticalSection(&this->cs);
-//	bool noError;
-//
-//	while (!this->pending->empty()) {
-//		LPIO_OBJ ioobj = this->pending->front();
-//
-//		switch (ioobj->operation) {
-//		case IO_OBJ::RECV_C:
-//			noError = PostRecv(this->cmdSock, ioobj);
-//			break;
-//		case IO_OBJ::SEND_C:
-//			noError = PostSend(this->cmdSock, ioobj);
-//			break;
-//		case IO_OBJ::RECV_F:
-//			if (!this->fileobj || this->fileSock == INVALID_SOCKET || !PostRecv(this->fileSock, ioobj)) {
-//				noError = FALSE;
-//				this->closeFile(TRUE);
-//			}
-//			else noError = TRUE;
-//			break;
-//		case IO_OBJ::WRTE_F:
-//			if (!this->fileobj || this->fileSock == INVALID_SOCKET || !PostWrite(this->fileobj->file, ioobj)) {
-//				noError = FALSE;
-//				this->closeFile(TRUE);
-//			}
-//			else noError = TRUE;
-//			break;
-//		case IO_OBJ::SEND_F:
-//			if (!this->fileobj || this->fileSock == INVALID_SOCKET || !PostSendFile(this->fileSock, this->fileobj->file, ioobj)) {
-//				noError = FALSE;
-//				this->closeFile(FALSE);
-//			}
-//			else noError = TRUE;
-//			break;
-//		}
-//
-//		if (noError)
-//			InterlockedIncrement(&this->oustandingOp);
-//		else 
-//			freeIoObject(ioobj);
-//
-//		this->pending->pop_front();
-//	}
-//	LeaveCriticalSection(&this->cs);
-//}
-
 void SESSION::closeFile(BOOL deleteFile) {
 	EnterCriticalSection(&this->cs);
 
 	//close file
 	if (this->fileobj != NULL) {
-		//close file connection
-		
-		/*if (shutdown(this->fileSock, SD_BOTH) == SOCKET_ERROR) {
-		printf("shutdown failed with error %d\n", WSAGetLastError());
-		}
-		if (CancelIoEx((HANDLE)this->fileSock, NULL)) {
-		printf("CancelIoEx failed with error %d\n", WSAGetLastError());
-		}*/
-
-		printf("Closing file socket %d\n", this->fileobj->fileSock);
-		if (closesocket(this->fileobj->fileSock) == SOCKET_ERROR) {
-			printf("closesocket failed with error %d\n", WSAGetLastError());
-		}
-
 		//not delete file if file use for retrieve
-		if (!(this->fileobj->operation == FILEOBJ::STOR)) {
-			/*if (CancelIoEx(this->fileobj->file, NULL)) {
-				printf("CancelIoEx failed with error %d\n", WSAGetLastError());
-			}*/
-
+		if (this->fileobj->operation == FILEOBJ::STOR) {
 			//mark file for delete after closehandle
 			FILE_DISPOSITION_INFO fdi;
 			fdi.DeleteFile = deleteFile;
@@ -121,7 +56,7 @@ LPSESSION getSession() {
 void freeSession(LPSESSION session) {
 	//logout
 	if (strlen(session->username) != 0) {
-		char s[BUFFSIZE];
+		char s[BUFFSIZE]= "";
 		handleLOGOUT(session, s);
 	}
 

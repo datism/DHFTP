@@ -1,112 +1,40 @@
 #pragma once
 #include <sstream>
+#include <vector>
 #include "Session.h"
 
-/**
-* @brief handle message form client
-*
-* @param[in] session
-* @param[in] mess message form client
-* @param[out] reply reply to client
-*/
-void handleMess(LPSESSION session, char *mess, char *reply);
 
-/**
-* @brief parse message into command and paramaters
-*
-* @param[in] mess message
-* @param[out] cmd command
-* @param[out] p1 paramater1
-* @param[out] p2 paramater2
-*/
-void parseMess(char *mess, char *cmd, char *p1, char *p2);
+void handleLOGIN(LPSESSION session, const char *username, const char *password, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] username
-* @param[in] password
-* @param[out] reply
-*/
-void handleLOGIN(LPSESSION session, char *username, char *password, char *reply);
+void changePass(LPSESSION session, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[out] reply
-*/
 void handleLOGOUT(LPSESSION session, char *reply);
 
-/**
-* @brief
-*
-* @param[in] username
-* @param[in] password
-* @param[out] reply
-*/
-void handleREGISTER(char *username, char *password, char* reply);
+void handleREGISTER(const char *username, const char *password, char *reply);
 
-void handleRETRIVE(LPSESSION session, char *filename, char *reply);
+void handleRETRIVE(LPSESSION session, const char *filename, char *reply);
 
-void handleSTORE(LPSESSION session, char * filename, char  *fileSize, char *reply);
+void handleSTORE(LPSESSION session, const char *filename, const char *fileSize, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] oldname
-* @param[in] newname
-* @param[out] reply
-*/
-void handleRENAME(LPSESSION session, char *oldname, char *newname, char *reply);
+void handleRENAME(LPSESSION session, const char *pathname, const char *newname, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] pathname
-* @param[out] reply
-*/
-void handleDELETE(LPSESSION session, char *pathname, char *reply);
+void handleDELETE(LPSESSION session, const char *pathname, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] pathname
-* @param[out] reply
-*/
-void handleMAKEDIR(LPSESSION session, char *pathname, char *reply);
+void handleMAKEDIR(LPSESSION session, const char *pathname, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] pathname
-* @param[out] reply
-*/
-void handleREMOVEDIR(LPSESSION session, char *pathname, char *reply);
+void handleREMOVEDIR(LPSESSION session, const char *pathname, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[in] pathname
-* @param[out] reply
-*/
-void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply);
+void handleCHANGEWDIR(LPSESSION session, const char *pathname, char *reply);
 
-/**
-* @brief
-*
-* @param[in] session
-* @param[out] reply
-*/
 void handlePRINTWDIR(LPSESSION session, char *reply);
 
+void handleLISTDIR(LPSESSION session, const char *pathname, char *reply);
+
+void handleMess(LPSESSION session, char *mess, char *reply);
+
 bool connectSQL();
+
+void newParseMess(char *mess, char *cmd, std::vector<std::string>& para);
 
 /**
 * @brief check the access of current user with the path
@@ -118,15 +46,7 @@ bool connectSQL();
 * @return true if user have access to path
 * @return false else
 */
-bool checkAccess(LPSESSION session, char *path);
-
-/**
-* @brief
-*
-* @param[in] session
-* @param[out] pathname
-*/
-void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
+bool checkAccess(LPSESSION session,const char *path, char *fullPath);
 
 /**
 * @brief check if file's name is valid
@@ -134,7 +54,7 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply);
 * @param[in] name
 * @retun true if name's valide
 */
-bool checkName(char *name);
+bool checkName(const char *name);
 
 void initParam(char *param);
 
@@ -155,3 +75,4 @@ void initMessage(char *mess, const char *header, Args... paras) {
 	else
 		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
 }
+

@@ -14,9 +14,14 @@
 
 using namespace std;
 
-void handleLOGIN(LPSESSION session, char *username, char *password, char *reply) {
+void handleLOGIN(LPSESSION session, const char *username,const char *password, char *reply) {
 	string userName = username;
 	string passWord = password;
+
+	if (strlen(session->username) != 0) {
+		initParam(reply, ALREADY_LOGIN, "Already log in");
+		return;
+	}
 
 	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");
@@ -27,6 +32,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 	SQLCHAR sqlPassword[50];
 	SQLCHAR sqlStatus[50];
 
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + userName + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
@@ -59,7 +65,7 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 				}
 			}
 			else {
-				initParam(reply, ALREADY_LOGIN, "Login failed. Already logged in");
+				initParam(reply, ALREADY_LOGIN, "Login failed. ACcount already logged in another session");
 			}
 		}
 		else {
@@ -70,6 +76,8 @@ void handleLOGIN(LPSESSION session, char *username, char *password, char *reply)
 		initParam(reply, USER_NOT_EXIST, "Login failed. Username doesn't exist");
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
 void changePass(LPSESSION session, char *reply) {
@@ -95,11 +103,12 @@ void changePass(LPSESSION session, char *reply) {
 
 	wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + userName + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
 		cout << "Error querying SQL Server" << endl;
-		return ;
+		return;
 	}
 
 	SQLWCHAR sqlPassword[50];
@@ -126,6 +135,8 @@ void changePass(LPSESSION session, char *reply) {
 	else {
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
 void handleLOGOUT(LPSESSION session, char *reply) {
@@ -136,7 +147,7 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 		return;
 	}
 
-
+	EnterCriticalSection(&gCriticalSection);
 	string query = "SELECT * FROM Account where username='" + username + "'";
 
 	if (SQL_SUCCESS != SQLExecDirect(gSqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS)) {
@@ -174,14 +185,21 @@ void handleLOGOUT(LPSESSION session, char *reply) {
 	else {
 		SQLCloseCursor(gSqlStmtHandle);
 	}
+
+	LeaveCriticalSection(&gCriticalSection);
 }
 
-void handleREGISTER(char *username, char *password, char* reply) {
+void handleREGISTER(const char *username, const char *password, char* reply) {
 	string userName = username;
 	string passWord = password;
 
 	if (userName.size() == 0 || passWord.size() == 0) {
 		initParam(reply, EMPTY_FIELD, "Empty field");
+		return;
+	}
+
+	if (!checkName(username)) {
+		initParam(reply, WRONG_SYNTAX, "Invalid username");
 		return;
 	}
 
@@ -202,11 +220,11 @@ void handleREGISTER(char *username, char *password, char* reply) {
 	}
 }
 
-void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
-	LPIO_OBJ sendFObj;
+void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 	LPFILEOBJ fileobj;
 	HANDLE hFile;
 	LARGE_INTEGER fileSize;
+	char fullPath[MAX_PATH];
 
 	//havent login
 	if (strlen(session->username) == 0) {
@@ -222,8 +240,14 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 		return;
 	}
 
+	//check file name
+	if (!checkName(filename)) {
+		initParam(reply, WRONG_SYNTAX, "Invalid file name");
+		return;
+	}
+
 	//Check access and get full path
-	if (!checkAccess(session, filename)) {
+	if (!checkAccess(session, filename, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this file");
 		return;
 	}
@@ -238,39 +262,40 @@ void handleRETRIVE(LPSESSION session, char *filename, char *reply) {
 	LeaveCriticalSection(&session->cs);
 
 	//Open existing file
-	hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+	hFile = CreateFileA(fullPath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
 			initParam(reply, FILE_NOT_EXIST, "File doesnt exist");
+		else
+			initParam(reply, SERVER_FAIL, "CreateFile failed");
 		return;
 	}
 
 	GetFileSizeEx(hFile, &fileSize);
 
 	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
-	sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, BUFFSIZE);
 
-	if (fileobj == NULL || sendFObj == NULL) {
+	if (fileobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Out of memory");
 		return;
 	}
 
 	session->fileobj = fileobj;
 
-	sendFObj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
-	session->EnListPendingOperation(sendFObj);
+	EnterCriticalSection(&gCriticalSection);
+	gFileListen->count++;
+	WSASetEvent(gFileListen->acceptEvent);
+	LeaveCriticalSection(&gCriticalSection);
 
-	initParam(reply, RETRIEVE_SUCCESS, fileobj->size);
+	initParam(reply, RETRIEVE_SUCCESS, (ULONG)session, fileobj->size);
 }
 
-
-void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply) {
+void handleSTORE(LPSESSION session, const char * filename, const char *fileSize, char *reply) {
 	LPFILEOBJ fileobj;
-	LPIO_OBJ recvFobj;
 	LONG64 size;
-	int i = 0;
+	char fullPath[MAX_PATH];
 
 	//havent login
 	if (strlen(session->username) == 0) {
@@ -294,7 +319,7 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	}
 
 	//Check access and get full path
-	if (!checkAccess(session, filename)) {
+	if (!checkAccess(session, filename, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this file");
 		return;
 	}
@@ -309,12 +334,14 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 	LeaveCriticalSection(&session->cs);
 
 	//creat new file
-	HANDLE hFile = CreateFileA(filename, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
+	HANDLE hFile = CreateFileA(fullPath, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_EXISTS)
 			initParam(reply, FILE_ALREADY_EXIST, "File already exsit");
+		else
+			initParam(reply, SERVER_FAIL, "CreateFile failed");
 		return;
 	}
 
@@ -334,191 +361,236 @@ void handleSTORE(LPSESSION session, char * filename, char *fileSize, char *reply
 
 	session->fileobj = fileobj;
 
-	while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
-		recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
-		if (recvFobj == NULL) {
-			initParam(reply, SERVER_FAIL, "Out of memory");
-			break;
-		}
+	EnterCriticalSection(&gCriticalSection);
+	gFileListen->count++;
+	WSASetEvent(gFileListen->acceptEvent);
+	LeaveCriticalSection(&gCriticalSection);
 
-		recvFobj->setFileOffset(session->fileobj->bytesRecved);
-		session->EnListPendingOperation(recvFobj);
 
-		session->fileobj->bytesRecved += recvFobj->dataBuff.len;
-	}
-
-	initParam(reply, STORE_SUCCESS, "receive");
+	initParam(reply, STORE_SUCCESS, (ULONG)session);
 }
 
-void handleRENAME(LPSESSION session, char *pathname, char *newname, char *reply) {
+void handleRENAME(LPSESSION session, const char *pathname, const char *newname, char *reply) {
+	char fullPath[MAX_PATH];
+	int error;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0 || strlen(newname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	if (!checkAccess(session, pathname)) {
-		initParam(reply, NO_ACCESS, "Dont have access to this file");
+	if (!checkAccess(session, pathname, fullPath)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
 
-	string fullOldName = pathname;
+	string fullOldName = fullPath;
 	string folderName = fullOldName.substr(0, fullOldName.rfind("\\"));
 
 	string newName = newname;
 	string fullNewName = folderName + "\\" + newName;
 
+	EnterCriticalSection(&session->cs);
 	if (MoveFileA(fullOldName.c_str(), fullNewName.c_str())) {
 		initParam(reply, RENAME_SUCCESS, "Rename successful");
 	}
 	else {
-		if (GetLastError() == ERROR_ALREADY_EXISTS)
+		error = GetLastError();
+
+		if (error == ERROR_ALREADY_EXISTS)
 			initParam(reply, FILE_ALREADY_EXIST, "Rename failed. Name already exists");
+		else if (error == ERROR_FILE_NOT_FOUND)
+			initParam(reply, FILE_ALREADY_EXIST, "Rename failed. File not found");
+		else if (error == ERROR_SHARING_VIOLATION)
+			initParam(reply, FiLE_BUSY, "File is being used by another process");
 		else
-			cout << "Rename failed with error " << GetLastError();
+			initParam(reply, SERVER_FAIL, "MoveFile faile");
 	}
+	LeaveCriticalSection(&session->cs);
 }
 
-void handleDELETE(LPSESSION session, char *pathname, char *reply) {
+void handleDELETE(LPSESSION session, const char *pathname, char *reply) {
+	char fullPath[MAX_PATH];
+	int error;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	if (!checkAccess(session, pathname)) {
-		initParam(reply, NO_ACCESS, "Dont have access to this file");
+	if (!checkAccess(session, pathname, fullPath)) {
+		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
-
-	if (DeleteFileA(pathname)) {
+	
+	EnterCriticalSection(&session->cs);
+	if (DeleteFileA(fullPath)) {
 		initParam(reply, DELETE_SUCCESS, "File deleted successfully");
 	}
 	else {
-		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+		error = GetLastError();
+
+		if (error == ERROR_FILE_NOT_FOUND)
 			initParam(reply, FILE_NOT_EXIST, "File doesn't exist");
-		}
-		else {
-			cout << "Delete file failed with error " << GetLastError();
-		}
+		else if (error == ERROR_SHARING_VIOLATION)
+			initParam(reply, FiLE_BUSY, "File is being used by another process");
+		else 
+			initParam(reply, SERVER_FAIL, "DeleteFile failed");
 	}
+	LeaveCriticalSection(&session->cs);
 }
 
-void handleMAKEDIR(LPSESSION session, char *pathname, char *reply) {
+void handleMAKEDIR(LPSESSION session, const char *pathname, char *reply) {
+	char fullPath[MAX_PATH];
+	int error;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	if (!checkAccess(session, pathname)) {
+	if (!checkAccess(session, pathname, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
 
-	if (CreateDirectoryA(pathname, NULL)) {
+	if (CreateDirectoryA(fullPath, NULL)) {
 		initParam(reply, MAKEDIR_SUCCESS, "Directory created successfully");
 	}
 	else {
-		if (GetLastError() == ERROR_PATH_NOT_FOUND)
+		error = GetLastError();
+
+		if (error == ERROR_PATH_NOT_FOUND)
 			initParam(reply, FILE_NOT_EXIST, "Directory failed. Path not found");
-		else if (GetLastError() == ERROR_ALREADY_EXISTS)
+		else if (error == ERROR_ALREADY_EXISTS)
 			initParam(reply, FILE_ALREADY_EXIST, "Directory failed. Path already exists");
 		else
-			cout << "Directory failed with error " << GetLastError();
+			initParam(reply, SERVER_FAIL, "CreateDirectory failed");
 	}
 }
 
-void handleREMOVEDIR(LPSESSION session, char *pathname, char *reply) {
+void handleREMOVEDIR(LPSESSION session, const char *pathname, char *reply) {
+	char fullPath[MAX_PATH];
+	int error;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	if (!checkAccess(session, pathname)) {
+	if (!checkAccess(session, pathname, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
 
-	if (RemoveDirectoryA(pathname)) {
-		initParam(reply, REMOVEDIR_SUCCESS, "Directory created successfully");
+	if (RemoveDirectoryA(fullPath)) {
+		initParam(reply, REMOVEDIR_SUCCESS, "Directory removed successfully");
 	}
 	else {
-		if (GetLastError() == ERROR_DIR_NOT_EMPTY) {
+		error = GetLastError();
+
+		if (error == ERROR_DIR_NOT_EMPTY) {
 			initParam(reply, DIR_NOT_EMPTY, "Remove directory failed. Not empty");
 		}
-		else if (GetLastError() == ERROR_FILE_NOT_FOUND || GetLastError() == ERROR_PATH_NOT_FOUND) {
+		else if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
 			initParam(reply, FILE_NOT_EXIST, "Remove directory failed. Path not found");
 		}
 		else
-			cout << "Remove directory failed with error: " << GetLastError();
+			initParam(reply, SERVER_FAIL, "RemoveDirectory failed");
 	}
 }
 
-void handleCHANGEWDIR(LPSESSION session, char *pathname, char *reply) {
+void handleCHANGEWDIR(LPSESSION session, const char *pathname, char *reply) {
+	char fullPath[MAX_PATH];
+	char fileData[BUFFSIZE];
+	HANDLE find;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
 
-	if (!checkAccess(session, pathname)) {
+	if (!checkAccess(session, pathname, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
 
-	session->setWorkingDir(pathname);
-	initParam(reply, CHANGEWDIR_SUCCESS, "Directory changed successfully");
+	find = FindFirstFileExA(
+		fullPath,
+		FindExInfoBasic,
+		fileData,
+		FindExSearchLimitToDirectories,
+		NULL,
+		FIND_FIRST_EX_CASE_SENSITIVE);
+
+	if (find == INVALID_HANDLE_VALUE)
+		initParam(reply, FILE_NOT_EXIST, "Change working directory failed. Path not found");
+	else {
+		session->setWorkingDir(fullPath);
+		initParam(reply, CHANGEWDIR_SUCCESS, "Directory changed successfully");
+	}
+
+	FindClose(find);
 }
 
 void handlePRINTWDIR(LPSESSION session, char *reply) {
+	char *workingDir;
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	initParam(reply, PRINTWDIR_SUCCESS, session->workingDir);
+	workingDir = strstr(session->workingDir, session->username);
+
+	initParam(reply, PRINTWDIR_SUCCESS, workingDir);
 }
 
-void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
+void handleLISTDIR(LPSESSION session, const char *pathname, char *reply) {
+	char fullPath[MAX_PATH];
+
 	if (strlen(session->username) == 0) {
 		initParam(reply, NOT_LOGIN, "Didn't log in");
 		return;
 	}
 
-	if (strlen(pathname) == 0) {
+	if (strlen(pathname) == 0 || strlen(pathname) > MAX_PATH) {
 		initParam(reply, WRONG_SYNTAX, "Wrong parameter");
 		return;
 	}
 
-	if (!checkAccess(session, pathname)) {
+	if (!checkAccess(session, pathname, fullPath)) {
 		initParam(reply, NO_ACCESS, "Dont have access to this directory");
 		return;
 	}
 
-	string pathName = pathname;
+	string pathName = fullPath;
 	pathName += "\\\*";
 	string names;
 
@@ -543,100 +615,126 @@ void handleLISTDIR(LPSESSION session, char *pathname, char *reply) {
 	FindClose(hFind);
 }
 
-void newParseMess(char *mess, char *cmd, std::vector<std::string> &para) {
-	string strMess = mess;
-	string strCmd;
-	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER);
+void handleMess(LPSESSION session, char *mess, char *reply) {
+	std::vector<std::string> para;
+	char cmd[BUFFSIZE] = "", res[BUFFSIZE] = "";
+	const char *p1, *p2;
 
-	if (crPos == -1) {
-		string strCmd = strMess.substr(0, lenStr);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
-	}
-	else {
-		strCmd = strMess.substr(0, crPos);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+	//Parse message
+	newParseMess(mess, cmd, para);
 
-		string strP = strMess.substr(crPos + 1, lenStr - crPos - 1);
-		int spPos = strP.find(PARA_DELIMITER);
-
-		while (spPos != -1) {
-			string p = strP.substr(0, spPos);
-			para.push_back(p);
-			int len = strP.length();
-			strP = strP.substr(spPos + 1, len - spPos - 1);
-			spPos = strP.find(PARA_DELIMITER);
+	if (!strcmp(cmd, LOGIN)) {
+		if (para.size() != 2) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			p2 = para[1].c_str();
+			handleLOGIN(session, p1, p2, res);
 		}
 
 		if (!strP.empty())
 			para.push_back(strP);
 	}
-}
-
-void parseMess(char *mess, char *cmd, char *p1, char *p2) {
-	std::string strMess = mess;
-	std::string strCmd, strP1, strP2;
-	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER), spPos = strMess.find(PARA_DELIMITER);
-	if (crPos == -1) {
-		std::string strCmd = strMess.substr(0, lenStr);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
-	}
-	else {
-		strCmd = strMess.substr(0, crPos);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
-		if (spPos == -1) {
-			strP1 = strMess.substr(crPos + 1, lenStr - crPos - 1);
-			strcpy_s(p1, BUFFSIZE, strP1.c_str());
+	else if (!strcmp(cmd, LOGOUT)) {
+		if (para.size() != 0) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
 		}
 		else {
-			strP1 = strMess.substr(crPos + 1, spPos - crPos - 1);
-			strcpy_s(p1, BUFFSIZE, strP1.c_str());
-			strP2 = strMess.substr(spPos + 1, lenStr - spPos - 1);
-			strcpy_s(p2, BUFFSIZE, strP2.c_str());
+			handleLOGOUT(session, res);
 		}
 	}
-}
-
-void handleMess(LPSESSION session, char *mess, char *reply) {
-	char cmd[BUFFSIZE] = "", p1[BUFFSIZE] = "", p2[BUFFSIZE] = "", res[BUFFSIZE] = "";
-
-	//Parse message
-	parseMess(mess, cmd, p1, p2);
-
-	if (!strcmp(cmd, LOGIN)) {
-		handleLOGIN(session, p1, p2, res);
-	}
-	else if (!strcmp(cmd, LOGOUT)) {
-		handleLOGOUT(session, res);
-	}
 	else if (!strcmp(cmd, REGISTER)) {
-		handleREGISTER(p1, p2, res);
+		if (para.size() != 2) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			p2 = para[1].c_str();
+			handleREGISTER(p1, p2, res);
+		}
 	}
 	else if (!strcmp(cmd, STORE)) {
-		handleSTORE(session, p1, p2, res);
+		if (para.size() != 2) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			p2 = para[1].c_str();
+			handleSTORE(session, p1, p2, res);
+		}
 	}
 	else if (!strcmp(cmd, RETRIEVE)) {
-		handleRETRIVE(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleRETRIVE(session, p1, res);
+		}
 	}
 	else if (!strcmp(cmd, RENAME)) {
-		handleRENAME(session, p1, p2, res);
+		if (para.size() != 2) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			p2 = para[1].c_str();
+			handleRENAME(session, p1, p2, res);
+		}
 	}
 	else if (!strcmp(cmd, DELETEFILE)) {
-		handleDELETE(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleDELETE(session, p1, res);
+		}
 	}
 	else if (!strcmp(cmd, MAKEDIR)) {
-		handleMAKEDIR(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleMAKEDIR(session, p1, res);
+		}
 	}
 	else if (!strcmp(cmd, REMOVEDIR)) {
-		handleREMOVEDIR(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleREMOVEDIR(session, p1, res);
+		}
 	}
 	else if (!strcmp(cmd, CHANGEWDIR)) {
-		handleCHANGEWDIR(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleCHANGEWDIR(session, p1, res);
+		}
 	}
 	else if (!strcmp(cmd, PRINTWDIR)) {
-		handlePRINTWDIR(session, res);
+		if (para.size() != 0) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			handlePRINTWDIR(session, res);
+		}
 	}
 	else if (!strcmp(cmd, LISTDIR)) {
-		handleLISTDIR(session, p1, res);
+		if (para.size() != 1) {
+			initParam(res, WRONG_SYNTAX, "Wrong number of parameters");
+		}
+		else {
+			p1 = para[0].c_str();
+			handleLISTDIR(session, p1, res);
+		}
 	}
 	else
 		initParam(res, WRONG_SYNTAX, "Wrong header");
@@ -697,9 +795,42 @@ bool connectSQL() {
 	return TRUE;
 }
 
-bool checkAccess(LPSESSION session, char *path) {
+void newParseMess(char *mess, char *cmd, std::vector<std::string> &para) {
+	string strMess = mess;
+	string strCmd, strP;
+	int crPos, spPos, lenStr;
+
+	lenStr = strMess.length();
+		
+	crPos = strMess.find(HEADER_DELIMITER);
+
+	if (crPos == -1) {
+		strcpy_s(cmd, BUFFSIZE, strMess.c_str());
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+
+		strP = strMess.substr(crPos + strlen(HEADER_DELIMITER), lenStr - crPos - strlen(HEADER_DELIMITER));
+		spPos = strP.find(PARA_DELIMITER);
+
+		while (1) {
+			spPos = strP.find(PARA_DELIMITER);
+
+			if (spPos == -1) {
+				para.push_back(strP);
+				break;
+			}
+			else {
+				para.push_back(strP.substr(0, spPos));
+				strP = strP.substr(spPos + strlen(PARA_DELIMITER), strP.length() - spPos - strlen(PARA_DELIMITER));
+			}
+		}
+	}
+}
+
+bool checkAccess(LPSESSION session, const char *path, char *fullPath) {
 	char rootPath[MAX_PATH];
-	char fullPath[MAX_PATH];
 	char temp[MAX_PATH];
 
 	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
@@ -708,16 +839,15 @@ bool checkAccess(LPSESSION session, char *path) {
 	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
 
 	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
-		strcpy_s(path, MAX_PATH, fullPath);
 		return TRUE;
 	}
 
-	strcpy_s(path, MAX_PATH, "");
+	strcpy_s(fullPath, MAX_PATH, "");
 	return FALSE;
 }
 
-bool checkName(char *name) {
-	if (strlen(name) == 0 || NULL == strchr(name, '\\'))
+bool checkName(const char *name) {
+	if (strlen(name) != 0 || NULL == strchr(name, '\\'))
 		return TRUE;
 	return FALSE;
 }

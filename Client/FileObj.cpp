@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 LPFILEOBJ GetFileObj(HANDLE hfile, LONG64 size, FILEOBJ::OP op) {
-	LPFILEOBJ newobj = NULL; 
+	LPFILEOBJ newobj = NULL;
 
 	if ((newobj = (LPFILEOBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(FILEOBJ))) == NULL)
 		printf("HeapAlloc() failed with error %d\n", GetLastError());
@@ -29,6 +29,5 @@ void FreeFileObj(LPFILEOBJ fileobj) {
 
 	HeapFree(GetProcessHeap(), NULL, fileobj);
 }
-
 
 

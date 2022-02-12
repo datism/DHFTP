@@ -1,13 +1,10 @@
 #pragma once
 #include <sal.h>
+#include <vector>
 #include "Session.h"
 #include "Envar.h"
 
-void parseReply(const char *reply, char *cmd, char *p1, char *p2);
 
-void chooseService(_Inout_ LpSession session, _Inout_ char *sendBuff);
-
-void handleReply(_Inout_ LpSession session, _In_ const char *reply);
 
 void LoginRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ const char * password);
 
@@ -18,6 +15,14 @@ void RegisterRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ c
 bool StoreRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
 
 bool RetrieveRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
+
+void chooseService(_Inout_ LpSession session, _Inout_ char *sendBuff);
+
+void handleReply(_Inout_ LpSession session, _In_ const char *reply);
+
+void parseReply(const char *reply, char *cmd, char *p1, char *p2);
+
+void newParseReply(const char *reply, char * cmd, std::vector<std::string>& para);
 
 void initParam(char *param);
 

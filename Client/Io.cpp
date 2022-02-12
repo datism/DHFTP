@@ -45,53 +45,49 @@ int blockRecv(SOCKET sock, char *recvBuff, DWORD length) {
 	return receivedBytes;
 }
 
-bool sendFile(LpSession session) {
+bool sendFile(SOCKET sock, HANDLE hfile, LONG64 size) {
 	LARGE_INTEGER totalBytes;
 	ZeroMemory(&totalBytes, sizeof(totalBytes));
 	//Send file
-	while (totalBytes.QuadPart < session->fileSize) {
-		DWORD bytes = min(session->fileSize - totalBytes.QuadPart, TRANSMITFILE_MAX);
+	while (totalBytes.QuadPart < size) {
+		DWORD bytes = min(size - totalBytes.QuadPart, TRANSMITFILE_MAX);
 
-		if (!TransmitFile(session->sock, session->hfile, bytes, 0, NULL, NULL, 0)) {
+		if (!TransmitFile(sock, hfile, bytes, 0, NULL, NULL, 0)) {
 			printf("TransmitFile() failed with error %d\n", WSAGetLastError());
-			session->closeFile();
 			return FALSE;
 		}
 
 		totalBytes.LowPart += bytes;
-		SetFilePointerEx(session->hfile, totalBytes, NULL, FILE_BEGIN);
+		SetFilePointerEx(hfile, totalBytes, NULL, FILE_BEGIN);
 	}
 	return TRUE;
 }
 
-bool recvFile(LpSession session) {
+bool recvFile(SOCKET sock, HANDLE hfile, LONG64 size) {
 	WSAOVERLAPPED ol;
 	LONG64 offset = 0;
 	DWORD transBytes;
 
 	ZeroMemory(&ol, sizeof(WSAOVERLAPPED));
 
-	while (offset < session->fileSize) {
+	while (offset < size) {
 		char buf[BUFFSIZE] = "";
 
-		transBytes = blockRecv(session->sock, buf, BUFFSIZE);
+		transBytes = blockRecv(sock, buf, BUFFSIZE);
 		if (transBytes <= 0) {
-			session->closeFile();
 			return FALSE;
 		}
 
 		ol.Offset = offset & 0xFFFF'FFFF;
 		ol.OffsetHigh = (offset >> 32) & 0xFFFF'FFFF;
 
-		if (!WriteFile(session->hfile, buf, transBytes, &transBytes, &ol)) {
+		if (!WriteFile(hfile, buf, transBytes, &transBytes, &ol)) {
 			printf("WriteFile() failed with error %d", GetLastError());
-			session->closeFile();
 			return FALSE;
 		}
 
 		offset += transBytes;
 	}
 	
-
 	return TRUE;
 }

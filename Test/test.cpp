@@ -10,74 +10,21 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include "process.h"
-
-#define MAX_CLIENT 4096
-#define SERVER_ADDR "127.0.0.1"
 #define SERVER_PORT 5500
-#define BUFFSIZE 4096
-#define TRANSMITFILE_MAX ((2<<30) - 1)
+#define SERVER_ADDR "127.0.0.1"
+#define BUFF_SIZE 4096
+#define MAX_CLIENT 4096
 
-#define ENDING_DELIMITER "\r\n"
-#define HEADER_DELIMITER "\r"
-#define PARA_DELIMITER " "
-
-#define LOGIN "LOGI"
-#define LOGOUT "LOGO"
-#define REGISTER "REG"
-#define RETRIEVE "RETR"
-#define STORE "STOR"
-#define RENAME "RN"
-#define DELETEFILE "DEL"
-#define MAKEDIR "MKD"
-#define REMOVEDIR "RMD"
-#define CHANGEWDIR "CWD"
-#define PRINTWDIR "PWD"
-#define LISTDIR "LIST"
-#define RESPONE "RES"
-
-#define LOGIN_SUCCESS "110"
-#define LOGOUT_SUCCESS "111"
-#define REGISTER_SUCCESS "112"
-
-#define RETRIEVE_SUCCESS "220"
-#define STORE_SUCCESS "221"
-#define RENAME_SUCCESS "121"
-#define DELETE_SUCCESS "122"
-#define MAKEDIR_SUCCESS "123"
-#define REMOVEDIR_SUCCESS "124"
-#define CHANGEWDIR_SUCCESS "125"
-#define PRINTWDIR_SUCCESS "126"
-#define LIST_SUCCESS "127"
+#define SUCCESS_LOGIN "10"
+#define SUCCESS_POST "20"
+#define SUCCESS_LOGOUT "30"
 
 #pragma comment (lib, "Ws2_32.lib")
-
-void initParam(char *param);
-
-template <typename P>
-void initParam(char *param, P p);
-
-template <typename P, typename... Args>
-void initParam(char *param, P p, Args... paras);
-
-template <typename... Args>
-void initMessage(char *mess, const char *header, Args... paras);
 
 int serverPort;
 unsigned __stdcall thread(void *param);
 unsigned __stdcall thread1(void *param);
 unsigned __stdcall thread2(void *param);
-
-const char *bigTest = "testbig.rar";
-const char *midTest = "testmid.rar";
-const char *smallTest = "testsmall.rar";
-HANDLE bigTestH;
-HANDLE midTestH;
-HANDLE smallTestH;
-LARGE_INTEGER bigTestS;
-LARGE_INTEGER midTestS;
-LARGE_INTEGER smallTestS;
-
-
 
 int main(int argc, char* argv[])
 {
@@ -93,160 +40,157 @@ int main(int argc, char* argv[])
 	client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	//Step 3: Specify server address
+
 	sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(SERVER_PORT);
 	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 
-	bigTestH = CreateFile(bigTest, GENERIC_READ, MAXDWORD, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	midTestH = CreateFile(midTest, GENERIC_READ, MAXDWORD, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	smallTestH = CreateFile(smallTest, GENERIC_READ, MAXDWORD, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if (bigTestH == INVALID_HANDLE_VALUE || midTestH == INVALID_HANDLE_VALUE || smallTestH == INVALID_HANDLE_VALUE) {
-		printf("CreateFileA() failed with error %d\n", GetLastError());
-		return 1;
-	}
-
-	GetFileSizeEx(bigTestH, &bigTestS);
-	GetFileSizeEx(midTestH, &midTestS);
-	GetFileSizeEx(smallTestH, &smallTestS);
-
-	//Step 4: Request to connect server
-	if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
-		printf("Error! Cannot connect server. %d", WSAGetLastError());
-		_getch();
-		return 0;
-	}
-	printf("Connected server!\n");
-	int tv = 100; //Time-out interval: 100ms
-	setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv), sizeof(int));
+	////Step 4: Request to connect server
+	//if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
+	//	printf("Error! Cannot connect server. %d", WSAGetLastError());
+	//	_getch();
+	//	return 0;
+	//}
+	//printf("Connected server!\n");
+	//int tv = 100; //Time-out interval: 100ms
+	//setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv), sizeof(int));
 	//Step 5: Communicate with server
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
+	char sBuff[BUFF_SIZE], rBuff[BUFF_SIZE];
 	int ret;
 
-	//Sequence testing
-	initMessage(sBuff, LOGIN, "test", "1");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Sequence test fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-		if (strstr(rBuff, RESPONE) != 0)
-			printf("Sequence test fail!\n");
-	}
+	////Sequence testing
+	//strcpy(sBuff, "POST Hello\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Sequence test fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//	if (strstr(rBuff, SUCCESS_POST) != 0)
+	//		printf("Sequence test fail!\n");
+	//}
 
-	//Function testing
-	initMessage(sBuff, REGISTER, "test", "1");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Main: %s-->%s\n\n", sBuff, rBuff);
-	if (strstr(rBuff, REGISTER_SUCCESS) != 0)
-		printf("REGISTER test fail!\n");
+	////Function testing
+	//strcpy(sBuff, "USER ductq\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n\n", sBuff, rBuff);
+	//if (strstr(rBuff, SUCCESS_LOGIN) != 0)
+	//	printf("Login test fail!\n");
 
-	initMessage(sBuff, LOGIN, "test", 1);
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Main: %s-->%s\n", sBuff, rBuff);
-	if (strstr(rBuff, LOGIN_SUCCESS) == 0)
-		printf("LOGIN test fail!\n");
+	//strcpy(sBuff, "USER admin\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n", sBuff, rBuff);
+	//if (strstr(rBuff, SUCCESS_LOGIN) == 0)
+	//	printf("Login test fail!\n");
 
-	initMessage(sBuff, STORE, smallTest, smallTestS.QuadPart);
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Main: %s-->%s\n", sBuff, rBuff);
-	if (strstr(rBuff, STORE_SUCCESS) != 0)
-		printf("STORE test fail!\n");
+	//strcpy(sBuff, "USER tungbt\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n", sBuff, rBuff);
+	//if (strstr(rBuff, SUCCESS_LOGIN) != 0)
+	//	printf("Login test fail!\n");
 
-	HANDLE smallRetrieve = CreateFile("smallRetrieve", GENERIC_WRITE | DELETE, MAXDWORD, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	initMessage(sBuff, RETRIEVE, smallTest);
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//strcpy(sBuff, "POST Hello\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n", sBuff, rBuff);
+	//if (strstr(rBuff, SUCCESS_POST) == 0)
+	//	printf("Post message test fail!\n");
 
+	//strcpy(sBuff, "QUIT \r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n", sBuff, rBuff);
+	//if (strstr(rBuff, SUCCESS_LOGOUT) == 0)
+	//	printf("Logout test fail!\n");
 
+	////Syntax testing
+	//strcpy(sBuff, "USER \r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Syntax test fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//	if (strstr(rBuff, SUCCESS_LOGIN) != 0)
+	//		printf("Login test fail!\n");
+	//}
 
+	//strcpy(sBuff, "foo\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Syntax test fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//}
 
-	//Syntax testing
-	strcpy(sBuff, "USER \r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Syntax test fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-		if (strstr(rBuff, SUCCESS_LOGIN) != 0)
-			printf("Login test fail!\n");
-	}
+	//strcpy(sBuff, "USER tungbt\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//rBuff[ret] = 0;
+	//printf("Main: %s-->%s\n", sBuff, rBuff);
 
-	strcpy(sBuff, "foo\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Syntax test fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-	}
+	////Stream testing
+	//strcpy(sBuff, "USER admin\r\nPOST Hello world\r\nPOST Test stream\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Stream test 1 fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//}
 
-	strcpy(sBuff, "USER tungbt\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Stream test 1 fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//}
 
-	//Stream testing
-	strcpy(sBuff, "USER admin\r\nPOST Hello world\r\nPOST Test stream\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Stream test 1 fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-	}
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Stream test 1 fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//}
 
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Stream test 1 fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-	}
+	//strcpy(sBuff, "POST I am tungbt");
+	//ret = send(client, sBuff, strlen(sBuff), 0);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret > 0)
+	//	printf("Stream test 2 fail!\n");
 
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Stream test 1 fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-	}
+	//strcpy(sBuff, "\r\n");
+	//ret = send(client, sBuff, strlen(sBuff), 0);
+	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//if (ret < 0)
+	//	printf("Stream test 2 fail!\n");
+	//else {
+	//	rBuff[ret] = 0;
+	//	printf("Main: %s-->%s\n", sBuff, rBuff);
+	//}
 
-	strcpy(sBuff, "POST I am tungbt");
-	ret = send(client, sBuff, strlen(sBuff), 0);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret > 0)
-		printf("Stream test 2 fail!\n");
+	//_getch();
 
-	strcpy(sBuff, "\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	if (ret < 0)
-		printf("Stream test 2 fail!\n");
-	else {
-		rBuff[ret] = 0;
-		printf("Main: %s-->%s\n", sBuff, rBuff);
-	}
-
-	_getch();
-
-	//Concurency test 1
-	_beginthreadex(0, 0, thread1, 0, 0, 0); //start thread
-	_beginthreadex(0, 0, thread2, 0, 0, 0); //start thread
-	Sleep(2000);
+	////Concurency test 1
+	//_beginthreadex(0, 0, thread1, 0, 0, 0); //start thread
+	//_beginthreadex(0, 0, thread2, 0, 0, 0); //start thread
+	//Sleep(2000);
 
 	//Concurency test 2
 	int numConn = 0;
@@ -254,7 +198,7 @@ int main(int argc, char* argv[])
 	scanf_s("%d", &numConn);
 	if (numConn > 0) {
 
-		char buff[BUFFSIZE];
+		char buff[BUFF_SIZE];
 		int numSession = 0, numConnected = 0;
 		SOCKET clients[MAX_CLIENT];
 		for (int i = 0; i < numConn; i++) {
@@ -264,19 +208,27 @@ int main(int argc, char* argv[])
 				break;
 			}
 			numConnected++;
-			int tv2 = 20;
+			int tv2 = 100;
 			setsockopt(clients[i], SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv2), sizeof(int));
 
-			strcpy(sBuff, "USER admin\r\n");
+			strcpy_s(sBuff,BUFF_SIZE, "USER admin\r\n");
 			ret = send(clients[i], sBuff, strlen(sBuff), 0);
-			ret = recv(clients[i], rBuff, BUFFSIZE, 0);
-
-			if (ret < 0)
-				printf("recv() fail.\n");
+			if (ret < 0) {
+				printf("send() fail %d.\n", WSAGetLastError());
+				closesocket(clients[i]);
+			}
 			else {
-				rBuff[ret] = 0;
-				printf("Concurent test: %s\n", rBuff);
-				numSession++;
+
+				ret = recv(clients[i], rBuff, BUFF_SIZE, 0);
+
+				if (ret < 0) {
+					printf("recv() fail %d.\n", WSAGetLastError());
+				}
+				else {
+					rBuff[ret] = 0;
+					printf("Concurent test: %s\n", rBuff);
+					numSession++;
+				}
 			}
 		}
 
@@ -287,16 +239,14 @@ int main(int argc, char* argv[])
 			closesocket(clients[i]);
 	}
 
-	//Concurency test 3
-	int numThread;
-	printf("Number of threads:");
-	scanf_s("%d", &numThread);
-	for (int i = 0; i < numThread; i++)
-		_beginthreadex(0, 0, thread, 0, 0, 0); //start thread
-											   //Step 6: Close socket
-	closesocket(client);
-
-	Sleep(5000);
+	////Concurency test 3
+	//int numThread;
+	//printf("Number of threads:");
+	//scanf_s("%d", &numThread);
+	//for (int i = 0; i < numThread; i++)
+	//	_beginthreadex(0, 0, thread, 0, 0, 0); //start thread
+	//										   //Step 6: Close socket
+	//closesocket(client);
 
 	//Step 7: Terminate Winsock
 	WSACleanup();
@@ -307,7 +257,7 @@ int main(int argc, char* argv[])
 unsigned __stdcall thread(void *param)
 {
 	int ret = 0, numConn = 10;
-	char buff[BUFFSIZE];
+	char buff[BUFF_SIZE];
 	int numSession = 0, numConnected = 0;
 	SOCKET clients[MAX_CLIENT];
 
@@ -315,7 +265,7 @@ unsigned __stdcall thread(void *param)
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(SERVER_PORT);
 	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
+	char sBuff[BUFF_SIZE], rBuff[BUFF_SIZE];
 	for (int i = 0; i < numConn; i++) {
 		clients[i] = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (connect(clients[i], (sockaddr *)&serverAddr, sizeof(serverAddr))) {
@@ -328,7 +278,7 @@ unsigned __stdcall thread(void *param)
 
 		strcpy(sBuff, "USER admin\r\n");
 		ret = send(clients[i], sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(clients[i], rBuff, BUFFSIZE, 0);
+		ret = recv(clients[i], rBuff, BUFF_SIZE, 0);
 
 		if (ret < 0)
 			printf("recv() fail.\n");
@@ -345,7 +295,7 @@ unsigned __stdcall thread(void *param)
 		for (int k = 0; k < 5; k++) {
 			strcpy(sBuff, "POST Hello. I am admin\r\n");
 			ret = send(clients[i], sBuff, strlen(sBuff), 0);
-			ret = recv(clients[i], rBuff, BUFFSIZE, 0);
+			ret = recv(clients[i], rBuff, BUFF_SIZE, 0);
 			if (ret < 0)
 				printf("recv() %d fail.\n", k);
 			else {
@@ -384,11 +334,11 @@ unsigned __stdcall thread1(void *param)
 	printf("Connected server!\n");
 
 	//Step 5: Communicate with server
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
+	char sBuff[BUFF_SIZE], rBuff[BUFF_SIZE];
 	int ret;
 	strcpy(sBuff, "USER tungbt\r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 
@@ -396,20 +346,20 @@ unsigned __stdcall thread1(void *param)
 		Sleep(10);
 		strcpy(sBuff, "POST Hello. I am tungbt\r\n");
 		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
+		ret = recv(client, rBuff, BUFF_SIZE, 0);
 		rBuff[ret] = 0;
 		printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 	}
 
 	strcpy(sBuff, "QUIT \r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 
 	strcpy(sBuff, "USER test\r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 
@@ -417,7 +367,7 @@ unsigned __stdcall thread1(void *param)
 		Sleep(10);
 		strcpy(sBuff, "POST Hello. I am test\r\n");
 		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
+		ret = recv(client, rBuff, BUFF_SIZE, 0);
 		rBuff[ret] = 0;
 		printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 	}
@@ -449,66 +399,35 @@ unsigned __stdcall thread2(void *param)
 	printf("Connected server!\n");
 
 	//Step 5: Communicate with server
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
+	char sBuff[BUFF_SIZE], rBuff[BUFF_SIZE];
 	int ret;
 	strcpy(sBuff, "USER admin\r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
 	for (int i = 0; i < 10; i++) {
 		Sleep(10);
 		strcpy(sBuff, "POST Hello. I am admin\r\n");
 		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
+		ret = recv(client, rBuff, BUFF_SIZE, 0);
 		rBuff[ret] = 0;
 		printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
 	}
 
 	strcpy(sBuff, "QUIT \r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
 
 	strcpy(sBuff, "USER ductq\r\n");
 	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
+	ret = recv(client, rBuff, BUFF_SIZE, 0);
 	rBuff[ret] = 0;
 	printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
 
 	//Step 6: Close socket
 	closesocket(client);
 	printf("Thread 2 end.\n");
-}
-
-void initParam(char *param) {}
-
-template <typename P>
-void initParam(char *param, P p) {
-	std::ostringstream sstr;
-	sstr << p;
-	strcat_s(param, BUFFSIZE, sstr.str().c_str());
-}
-
-template <typename P, typename... Args>
-void initParam(char *param, P p, Args... paras) {
-	std::ostringstream sstr;
-
-	sstr << p << PARA_DELIMITER;
-	strcat_s(param, BUFFSIZE, sstr.str().c_str());
-
-	initParam(param, paras...);
-}
-
-template <typename... Args>
-void initMessage(char *mess, const char *header, Args... paras) {
-	char param[BUFFSIZE] = "";
-
-	initParam(param, paras...);
-
-	if (strlen(param) == 0)
-		sprintf_s(mess, BUFFSIZE, "%s%s", header, ENDING_DELIMITER);
-	else
-		sprintf_s(mess, BUFFSIZE, "%s%s%s%s", header, HEADER_DELIMITER, param, ENDING_DELIMITER);
 }

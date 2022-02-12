@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 
 typedef struct FILEOBJ {
+	SOCKET fileSock;
 	HANDLE file;
 
 	int operation;
@@ -11,9 +12,9 @@ typedef struct FILEOBJ {
 	};
 
 	LONG64 size;
-	volatile LONG64 bytesSended;
-	volatile LONG64 bytesRecved;
-	volatile LONG64 bytesWritten;
+	//volatile LONG64 bytesSended;
+	//volatile LONG64 bytesRecved;
+	//volatile LONG64 bytesWritten;
 
 } FILEOBJ, *LPFILEOBJ;
 

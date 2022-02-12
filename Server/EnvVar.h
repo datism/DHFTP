@@ -1,5 +1,6 @@
 #pragma once
 #include <sqltypes.h>
+#include <set>
 #include "ListenObj.h"
 
 #define SQL_RESULT_LEN 240
@@ -9,6 +10,8 @@
 #define SERVER_PORT 5500
 #define BUFFSIZE 4096
 
+#define	MAX_PENDING_ACCEPT 500
+#define MAX_CONCURENT_SESSION 10000
 #define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
 #define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
 #define TRANSMITFILE_MAX ((2<<30) - 1)
@@ -16,9 +19,11 @@
 #define MAX_SEND_PER_SESSION 5
 #define MAX_IOOBJ_PER_FILEOBJ 10
 
-#define ENDING_DELIMITER "\r\n"
-#define HEADER_DELIMITER "\r"
-#define PARA_DELIMITER " "
+
+#define ENDING_DELIMITER "\r\n\r\n"
+#define HEADER_DELIMITER "\r\n"
+#define PARA_DELIMITER "\r"
+
 
 #define LOGIN "LOGI"
 #define LOGOUT "LOGO"
@@ -34,9 +39,12 @@
 #define LISTDIR "LIST"
 #define RESPONE "RES"
 #define RECEIVE "RECV"
+#define CONNECT "CNCT"
 
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;
+extern CRITICAL_SECTION gCriticalSection;
+extern std::set<ULONG> gSessionSet;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,
@@ -67,6 +75,7 @@ enum REPLY_CODE {
 	NAME_WRONG_FORMAT = 323,
 	TRANSMIT_FAIL = 324,
 	DIR_NOT_EMPTY = 325,
+	FiLE_BUSY = 326,
 
 	WRONG_SYNTAX = 330,
 	SERVER_FAIL = 331

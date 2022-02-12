@@ -20,7 +20,7 @@ void SESSION::closeFile(BOOL deleteFile) {
 	EnterCriticalSection(&this->cs);
 	//close file
 	if (this->fileobj != NULL) {
-		//only delete file if file use for store
+		//not delete file if file use for retrieve
 		if (this->fileobj->operation == FILEOBJ::STOR) {
 			//mark file for delete after closehandle
 			FILE_DISPOSITION_INFO fdi;
@@ -54,7 +54,7 @@ LPSESSION getSession() {
 void freeSession(LPSESSION session) {
 	//logout
 	if (strlen(session->username) != 0) {
-		char s[BUFFSIZE];
+		char s[BUFFSIZE]= "";
 		handleLOGOUT(session, s);
 	}
 

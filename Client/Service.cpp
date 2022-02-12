@@ -3,20 +3,15 @@
 #include <sstream>
 #include <string>
 #include "Envar.h"
+#include "FileObj.h"
 #include "Io.h"
 
 void LoginRequest(char *sendBuff, const char *username, const char *password) {
 	initMessage(sendBuff, LOGIN, username, password);
-
-	/*std::ostringstream ss;
-	for (int i = 0; i < 10; ++i)
-		ss << sendBuff;
-
-	strcpy_s(sendBuff, BUFFSIZE, ss.str().c_str());*/
 }
 
 void LogoutRequest(char *sendBuff) {
-	initMessage(sendBuff, LOGOUT, NULL, NULL);
+	initMessage(sendBuff, LOGOUT);
 }
 
 void RegisterRequest(char *sendBuff, const char *username, const char *password) {
@@ -24,37 +19,45 @@ void RegisterRequest(char *sendBuff, const char *username, const char *password)
 }
 
 bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
+	HANDLE hfile;
 	LARGE_INTEGER fileSize;
 
-	if (session->hfile != INVALID_HANDLE_VALUE)
-		session->closeFile();
+	if (session->fileobj != NULL)
+		session->closeFile(FALSE);
 
-	session->hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (session->hfile == INVALID_HANDLE_VALUE) {
+	hfile = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
+	else {
+		if (!GetFileSizeEx(hfile, &fileSize)) {
+			printf("GetFileSizeEx() failed with error %d\n", GetLastError());
+			return false;
+		}
 
-	if (!GetFileSizeEx(session->hfile, &fileSize)) {
-		printf("GetFileSizeEx() failed with error %d\n", GetLastError());
-		return false;
+		session->fileobj = GetFileObj(hfile, fileSize.QuadPart, FILEOBJ::STOR);
+		initMessage(sendBuff, STORE, fileName, session->fileobj->size);
 	}
-
-	session->fileSize = fileSize.QuadPart;
-
-	initMessage(sendBuff, STORE, fileName, session->fileSize);
 }
 
 bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) {
-	if (session->hfile != INVALID_HANDLE_VALUE)
-		session->closeFile();
-	session->hfile = CreateFileA(fileName, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (session->hfile == INVALID_HANDLE_VALUE) {
+	HANDLE hfile;
+
+	if (session->fileobj != NULL)
+		session->closeFile(TRUE);
+
+	hfile = CreateFileA(fileName, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
+	else {
+		session->fileobj = GetFileObj(hfile, 0, FILEOBJ::RETR);
+		initMessage(sendBuff, RETRIEVE, fileName);
+	}
 
-	initMessage(sendBuff, RETRIEVE, fileName, NULL);
+	
 	return true;
 }
 
@@ -63,19 +66,19 @@ void RenameRequest(char *sendBuf, const char *serverFile, const char *newname) {
 }
 
 void DeleteRequest(char *sendBuf, const char *serverFile) {
-	initMessage(sendBuf, DELETEFILE, serverFile, NULL);
+	initMessage(sendBuf, DELETEFILE, serverFile);
 }
 
 void MakeDirRequest(char *sendBuf, const char *dirPath) {
-	initMessage(sendBuf, MAKEDIR, dirPath, NULL);
+	initMessage(sendBuf, MAKEDIR, dirPath);
 }
 
 void RemoveDirRequest(char *sendBuf, const char *dirPath) {
-	initMessage(sendBuf, REMOVEDIR, dirPath, NULL);
+	initMessage(sendBuf, REMOVEDIR, dirPath);
 }
 
 void ChangeWDirRequest(char *sendBuf, const char *dirPath) {
-	initMessage(sendBuf, CHANGEWDIR, dirPath, NULL);
+	initMessage(sendBuf, CHANGEWDIR, dirPath);
 }
 
 void PrintWDirRequest(char *sendBuf) {
@@ -83,7 +86,7 @@ void PrintWDirRequest(char *sendBuf) {
 }
 
 void ListDirRequest(char *sendBuf, const char *dirPath) {
-	initMessage(sendBuf, LISTDIR, dirPath, NULL);
+	initMessage(sendBuf, LISTDIR, dirPath);
 }
 
 void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
@@ -94,6 +97,7 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	while (1) {
 		printf("\nChoose service: ");
 		scanf_s("%d", &choice);
+		/*choice = 5;*/
 		printf("\n");
 
 		//Clear input buffer
@@ -102,76 +106,76 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 
 		switch (choice) {
 			//Login
-		case 1:
-			printf("Enter username: ");
-			gets_s(p1, BUFFSIZE);
-			printf("Enter password: ");
-			gets_s(p2, BUFFSIZE);
-			LoginRequest(sendBuff, p1, p2);
-			return;
+			case 1:
+				printf("Enter username: ");
+				gets_s(p1, BUFFSIZE);
+				printf("Enter password: ");
+				gets_s(p2, BUFFSIZE);
+				LoginRequest(sendBuff, p1, p2);
+				return;
 			//Logout
-		case 2:
-			LogoutRequest(sendBuff);
-			return;
+			case 2:
+				LogoutRequest(sendBuff);
+				return;
 			//Register
-		case 3:
-			printf("Enter username: ");
-			gets_s(p1, BUFFSIZE);
-			printf("Enter password: ");
-			gets_s(p2, BUFFSIZE);
-			RegisterRequest(sendBuff, p1, p2);
-			return;
+			case 3:
+				printf("Enter username: ");
+				gets_s(p1, BUFFSIZE);
+				printf("Enter password: ");
+				gets_s(p2, BUFFSIZE);
+				RegisterRequest(sendBuff, p1, p2);
+				return;
 			//Store file
-		case 4:
-			printf("Enter file name: ");
-			gets_s(p1, BUFFSIZE);
-			if (!StoreRequest(session, sendBuff, p1))
-				break;
-			return;
+			case 4:
+				printf("Enter file name: ");
+				gets_s(p1, BUFFSIZE);
+				/*strcpy_s(p1, BUFFSIZE, "testbig.rar");*/
+				if (!StoreRequest(session, sendBuff, p1))
+					break;
+				return;
 			//Retrieve
-		case 5:
-			printf("Enter file name: ");
-			gets_s(p1, BUFFSIZE);
-			if (!RetrieveRequest(session, sendBuff, p1))
-				break;
-			return;
-		case 6:
-			printf("Enter server file path: ");
-			gets_s(p1, BUFFSIZE);
-			printf("Enter new name: ");
-			gets_s(p2, BUFFSIZE);
-			RenameRequest(sendBuff, p1, p2);
-			break;
-		case 7:
-			printf("Enter server file path: ");
-			gets_s(p1, BUFFSIZE);
-			DeleteRequest(sendBuff, p1);
-			break;
-		case 8:
-			printf("Enter directory path: ");
-			gets_s(p1, BUFFSIZE);
-			MakeDirRequest(sendBuff, p1);
-			break;
-		case 9:
-			printf("Enter directory path: ");
-			gets_s(p1, BUFFSIZE);
-			RemoveDirRequest(sendBuff, p1);
-			break;
-		case 10:
-			printf("Enter directory path: ");
-			gets_s(p1, BUFFSIZE);
-			ChangeWDirRequest(sendBuff, p1);
-			break;
-		case 11:
-			printf("Enter directory path: ");
-			gets_s(p1, BUFFSIZE);
-			PrintWDirRequest(sendBuff);
-			break;
-		case 12:
-			printf("Enter directory path: ");
-			gets_s(p1, BUFFSIZE);
-			ListDirRequest(sendBuff, p1);
-			break;
+			case 5:
+				printf("Enter file name: ");
+				gets_s(p1, BUFFSIZE);
+				/*strcpy_s(p1, BUFFSIZE, "testmid.rar");*/
+				if (!RetrieveRequest(session, sendBuff, p1))
+					break;
+				return;
+			case 6:
+				printf("Enter server file path: ");
+				gets_s(p1, BUFFSIZE);
+				printf("Enter new name: ");
+				gets_s(p2, BUFFSIZE);
+				RenameRequest(sendBuff, p1, p2);
+				return;
+			case 7:
+				printf("Enter server file path: ");
+				gets_s(p1, BUFFSIZE);
+				DeleteRequest(sendBuff, p1);
+				return;
+			case 8:
+				printf("Enter directory path: ");
+				gets_s(p1, BUFFSIZE);
+				MakeDirRequest(sendBuff, p1);
+				return;
+			case 9:
+				printf("Enter directory path: ");
+				gets_s(p1, BUFFSIZE);
+				RemoveDirRequest(sendBuff, p1);
+				return;
+			case 10:
+				printf("Enter directory path: ");
+				gets_s(p1, BUFFSIZE);
+				ChangeWDirRequest(sendBuff, p1);
+				return;
+			case 11:
+				PrintWDirRequest(sendBuff);
+				return;
+			case 12:
+				printf("Enter directory path: ");
+				gets_s(p1, BUFFSIZE);
+				ListDirRequest(sendBuff, p1);
+				return;
 			//Invalid input
 		default: {printf("Invalid input, choose again.\n"); continue; }
 		}
@@ -180,33 +184,75 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 }
 
 void handleReply(LpSession session, const char *reply) {
-	char header[BUFFSIZE], p1[BUFFSIZE], p2[BUFFSIZE];
-	parseReply(reply, header, p1, p2);
+	char header[BUFFSIZE] = "", request[BUFFSIZE] = "";
+	const char *p1, *p2, *p3;
+	std::vector<std::string> para;
 
-	if (strcmp(header, "RES") || strlen(p1) == 0)
+	newParseReply(reply, header, para);
+
+	if (strcmp(header, "RES") || para.size() < 1)
 		return;
+
+	p1 = para[0].c_str();
 
 	int res = atoi(p1);
 
 	switch (res) {
-		case RETRIEVE_SUCCESS:
-			session->fileSize = _atoi64(p2);
-			printf("Receiving file.....\n");
-			if (recvFile(session))
-				printf("Recieve file sucessful\n");
-			session->closeFile();
+	case RETRIEVE_SUCCESS:
+		if (para.size() != 3) {
+			session->closeFile(TRUE);
+			return;
+		}
+
+		p2 = para[1].c_str();
+		p3 = para[2].c_str();
+
+		initMessage(request, CONNECT, p2);
+		session->fileobj->size = _atoi64(p3);
+		
+		session->fileobj->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
+		if (connect(session->fileobj->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
+			printf("connect() failed with error %d", WSAGetLastError());
+			session->closeFile(TRUE);
 			break;
-		case STORE_SUCCESS:
-			printf("Sending file.....\n");
-			if(sendFile(session)) 
-				printf("Send file sucessful\n");
-			session->closeFile();
+		}
+		blockSend(session->fileobj->fileSock, request);
+
+		printf("Receiving file.....\n");
+		if (recvFile(session->fileobj->fileSock, session->fileobj->file, session->fileobj->size))
+			printf("Recieve file sucessful\n");
+		session->closeFile(FALSE);
+		break;
+	case STORE_SUCCESS:
+		if (para.size() != 2) {
+			session->closeFile(FALSE);
+			return;
+		}
+
+		p2 = para[1].c_str();
+		initMessage(request, CONNECT, p2);
+
+		session->fileobj->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		printf("Connecting to file port.....\n");
+		if (connect(session->fileobj->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
+			printf("connect() failed with error %d", WSAGetLastError());
+			session->closeFile(FALSE);
 			break;
-		default:
-			if (strlen(p2) != 0) {
-				printf("%s\n", p2);
-			}
-			break;
+		}
+		blockSend(session->fileobj->fileSock, request);
+
+		printf("Sending file.....\n");
+		if (sendFile(session->fileobj->fileSock, session->fileobj->file, session->fileobj->size))
+			printf("Send file sucessful\n");
+		session->closeFile(FALSE);
+		break;
+	default:
+		if (para.size() > 1) {
+			p2 = para[1].c_str();
+			printf("%s\n", p2);
+		}
+		break;
 	}
 }
 
@@ -230,6 +276,40 @@ void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
 			strcpy_s(p1, BUFFSIZE, strP1.c_str());
 			strP2 = strMess.substr(spPos + 1, lenStr - spPos - 1);
 			strcpy_s(p2, BUFFSIZE, strP2.c_str());
+		}
+	}
+}
+
+void newParseReply(const char *reply, char *cmd, std::vector<std::string> &para) {
+	std::string strMess = reply;
+	std::string strCmd, strP;
+	int crPos, spPos, lenStr;
+
+	lenStr = strMess.length();
+
+	crPos = strMess.find(HEADER_DELIMITER);
+
+	if (crPos == -1) {
+		strcpy_s(cmd, BUFFSIZE, strMess.c_str());
+	}
+	else {
+		strCmd = strMess.substr(0, crPos);
+		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
+
+		strP = strMess.substr(crPos + strlen(HEADER_DELIMITER), lenStr - crPos - strlen(HEADER_DELIMITER));
+		spPos = strP.find(PARA_DELIMITER);
+
+		while (1) {
+			spPos = strP.find(PARA_DELIMITER);
+
+			if (spPos == -1) {
+				para.push_back(strP);
+				break;
+			}
+			else {
+				para.push_back(strP.substr(0, spPos));
+				strP = strP.substr(spPos + strlen(PARA_DELIMITER), strP.length() - spPos - strlen(PARA_DELIMITER));
+			}
 		}
 	}
 }

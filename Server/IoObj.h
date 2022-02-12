@@ -18,10 +18,11 @@ typedef struct IO_OBJ {
 	enum OP {
 		RECV_C,
 		SEND_C,
+		ACPT_C,
 		RECV_F,
 		SEND_F,
 		WRTE_F,
-		ACCEPT
+		ACPT_F
 	};
 
 	void setBufferSend(_In_z_ char *i_buffer);

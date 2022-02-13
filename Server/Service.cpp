@@ -274,9 +274,7 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 	}
 
 	GetFileSizeEx(hFile, &fileSize);
-
 	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
-
 	if (fileobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Out of memory");
 		return;
@@ -284,6 +282,7 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 
 	session->fileobj = fileobj;
 
+	//Set accept event of file listen socket
 	EnterCriticalSection(&gCriticalSection);
 	gFileListen->count++;
 	WSASetEvent(gFileListen->acceptEvent);
@@ -353,7 +352,6 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 	}
 
 	fileobj = GetFileObj(hFile, size, FILEOBJ::STOR);
-
 	if (fileobj == NULL) {
 		initParam(reply, SERVER_FAIL, "Out of memory");
 		return;
@@ -361,6 +359,7 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 
 	session->fileobj = fileobj;
 
+	//Set accept event of file listen socket
 	EnterCriticalSection(&gCriticalSection);
 	gFileListen->count++;
 	WSASetEvent(gFileListen->acceptEvent);
@@ -838,7 +837,8 @@ bool checkAccess(LPSESSION session, const char *path, char *fullPath) {
 	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
 		return TRUE;
 	}
-
+	
+	//path invalid or dont contain root path
 	strcpy_s(fullPath, MAX_PATH, "");
 	return FALSE;
 }
@@ -846,6 +846,7 @@ bool checkAccess(LPSESSION session, const char *path, char *fullPath) {
 bool checkName(const char *name) {
 	if (strlen(name) != 0 || NULL == strchr(name, '\\'))
 		return TRUE;
+
 	return FALSE;
 }
 
@@ -854,6 +855,8 @@ void initParam(char *param) {}
 template <typename P>
 void initParam(char *param, P p) {
 	std::ostringstream sstr;
+
+	//param + para
 	sstr << p;
 	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 }
@@ -862,8 +865,10 @@ template <typename P, typename... Args>
 void initParam(char *param, P p, Args... paras) {
 	std::ostringstream sstr;
 
+	//param + para + para delimiter
 	sstr << p << PARA_DELIMITER;
 	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 
+	//recursion
 	initParam(param, paras...);
 }

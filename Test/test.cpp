@@ -1,8 +1,6 @@
 
 // TCPClient.cpp : Defines the entry point for the console application.
 //
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
@@ -27,8 +25,6 @@ sockaddr_in gFileAddr;
 
 int serverPort;
 unsigned __stdcall thread(void *param);
-unsigned __stdcall thread1(void *param);
-unsigned __stdcall thread2(void *param);
 unsigned __stdcall completetionTheard(LPVOID completionPortID);
 unsigned __stdcall fileTest(void *param);
 
@@ -119,11 +115,11 @@ int main(int argc, char* argv[])
 
 	gCmdAddr.sin_family = AF_INET;
 	gCmdAddr.sin_port = htons(CMD_PORT);
-	gCmdAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
+	inet_pton(AF_INET, SERVER_ADDR, &gCmdAddr.sin_addr);
 
 	gFileAddr.sin_family = AF_INET;
 	gFileAddr.sin_port = htons(FILE_PORT);
-	gFileAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
+	inet_pton(AF_INET, SERVER_ADDR, &gFileAddr.sin_addr);
 
 	////Step 4: Request to connect server
 	//if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
@@ -327,6 +323,18 @@ int main(int argc, char* argv[])
 	//for (int i = 0; i < numThread; i++)
 	//	theards[i] = (HANDLE) _beginthreadex(0, 0, thread, 0, 0, 0);
 
+	if ((gCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0)) == NULL) {
+		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+		return 1;
+	}
+
+	SYSTEM_INFO systemInfo;
+	GetSystemInfo(&systemInfo);
+	for (int waitCount = 0; waitCount < (int)systemInfo.dwNumberOfProcessors * 2; waitCount++) {
+		// Create a server worker thread and pass the completion port to the thread
+		_beginthreadex(0, 0, completetionTheard, (void*)gCompletionPort, 0, 0);
+	}
+
 	//Concurency test 4
 	int numThread;
 	printf("Number of threads:");
@@ -355,14 +363,10 @@ unsigned __stdcall thread(void *param)
 	int numSession = 0, numConnected = 0;
 	SOCKET clients[MAX_CLIENT];
 
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(CMD_PORT);
-	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
 	for (int i = 0; i < numConn; i++) {
 		clients[i] = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (connect(clients[i], (sockaddr *)&serverAddr, sizeof(serverAddr))) {
+		if (connect(clients[i], (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
 			printf("\nError: %d", WSAGetLastError());
 			break;
 		}
@@ -370,7 +374,7 @@ unsigned __stdcall thread(void *param)
 		int tv2 = 20;
 		setsockopt(clients[i], SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv2), sizeof(int));
 
-		strcpy(sBuff, "USER admin\r\n\r\n");
+		strcpy_s(sBuff,BUFFSIZE, "USER admin\r\n\r\n");
 		ret = send(clients[i], sBuff, strlen(sBuff), 0);
 		if (ret < 0)
 			printf("recv() fail %d.\n", WSAGetLastError());
@@ -390,7 +394,7 @@ unsigned __stdcall thread(void *param)
 	for (int i = 0; i < numConn; i++) {
 		int ok = 0;
 		for (int k = 0; k < 5; k++) {
-			strcpy(sBuff, "POST Hello. I am admin\r\n\r\n");
+			strcpy_s(sBuff, BUFFSIZE, "POST Hello. I am admin\r\n\r\n");
 			ret = send(clients[i], sBuff, strlen(sBuff), 0);
 			ret = recv(clients[i], rBuff, BUFFSIZE, 0);
 			if (ret < 0)
@@ -452,7 +456,7 @@ void handleReply(LpSession session, const char *reply) {
 			printf("Recieve file sucessful\n");
 		session->closeFile(FALSE);
 		break;
-	case STORE_SUCCESS:
+	case STORE_SUCCESS: {
 		if (para.size() != 2) {
 			session->closeFile(FALSE);
 			return;
@@ -468,13 +472,15 @@ void handleReply(LpSession session, const char *reply) {
 			session->closeFile(FALSE);
 			break;
 		}
-		blockSend(session->fileobj->fileSock, request);
 
-		printf("Sending file.....\n");
-		if (sendFile(session->fileobj->fileSock, session->fileobj->file, session->fileobj->size))
-			printf("Send file sucessful\n");
-		session->closeFile(FALSE);
+		if (CreateIoCompletionPort((HANDLE)session->fileobj->fileSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
+			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+		}
+
+		LPIO_OBJ sendobj = getIoObject(IO_OBJ::ACPT_F, request, strlen(request) + 1);
+		PostSend(session->fileobj->fileSock, sendobj);
 		break;
+	}
 	default:
 		if (session->fileobj != NULL)
 			session->closeFile(TRUE);
@@ -488,19 +494,16 @@ void handleReply(LpSession session, const char *reply) {
 }
 
 unsigned __stdcall fileTest(void *param) {
-	int numcon = 10;
+	int numcon = 100;
 	HANDLE hfile;
 	char *fileName = "testmid.rar";
 	LARGE_INTEGER filesize;
 	LpSession session;
 	int bytes;
-	char *pos = NULL;
 	char sBuf[BUFFSIZE] = "";
-	char rBuf[BUFFSIZE] = "";
 	DWORD t = (int)param * 10;
 
 	for (int i = 0; i < numcon; i++) {
-		
 		session = getSession();
 		session->cmdSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (connect(session->cmdSock, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
@@ -519,149 +522,80 @@ unsigned __stdcall fileTest(void *param) {
 			return -1;
 		}
 
+
+		if (CreateIoCompletionPort((HANDLE)session->cmdSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
+			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
+		}
+
 		session->fileobj = GetFileObj(hfile, filesize.QuadPart, FILEOBJ::STOR);
 		initMessage(sBuf, STORE, t + i, session->fileobj->size);
-		blockSend(session->cmdSock, sBuf);
 
-		bytes = blockRecv(session->cmdSock, rBuf, BUFFSIZE);
-		if (!bytes)
-			break;
-
-		pos = strstr(rBuf, ENDING_DELIMITER);
-		*pos = 0;
-		handleReply(session, rBuf);
-
-		strcpy_s(rBuf, BUFFSIZE, "");
+		LPIO_OBJ sendobj = getIoObject(IO_OBJ::SEND_C, sBuf, strlen(sBuf) + 1);
+		PostSend(session->cmdSock, sendobj);
 	}
 }
 
 unsigned __stdcall completetionTheard(LPVOID completionPortID) {
 	HANDLE completionPort = (HANDLE)completionPortID;
-	DWORD transferredBytes;
+
 	ULONG_PTR key = NULL;
 	LPIO_OBJ ioobj = NULL;
+	LpSession session = NULL;
+	DWORD transferredBytes;
 	int rc;
 
 	while (true) {
 		rc = GetQueuedCompletionStatus(completionPort, &transferredBytes, (PULONG_PTR)&key, (LPOVERLAPPED *)&ioobj, INFINITE);
+		if (rc == FALSE) {
+			printf("GetQueuedCompletionStatus() failed with error %d\n", GetLastError());
+			freeIoObject(ioobj);
+			FreeSession((LpSession) key);
+			continue;
+		}
+
+		session = (LpSession)key;
+
+		switch (ioobj->operation) {
+		case IO_OBJ::SEND_C: {
+			LPIO_OBJ recvobj = getIoObject(IO_OBJ::RECV_C, NULL, BUFFSIZE);
+			PostRecv(session->cmdSock, recvobj);
+			freeIoObject(ioobj);
+			break;
+		}
+		case IO_OBJ::RECV_C: {
+			ioobj->buffer[transferredBytes] = 0;
+			char *pos = strstr(ioobj->buffer, ENDING_DELIMITER);
+			*pos = 0;
+			handleReply(session, ioobj->buffer);
+			freeIoObject(ioobj);
+			break;
+		}
+		case IO_OBJ::ACPT_F: {
+			printf("Sending file.....\n");
+			LPIO_OBJ sendfobj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
+			sendfobj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
+			PostSendFile(session->fileobj->fileSock, session->fileobj->file, sendfobj);
+			freeIoObject(ioobj);
+			break;
+		}
+		case IO_OBJ::SEND_F: {
+			session->fileobj->bytesSended += transferredBytes;
+			LONG64 remain = session->fileobj->size - session->fileobj->bytesSended;
+			if (remain <= 0) {
+				printf("Finish sending file.\n");
+				freeIoObject(ioobj);
+				session->closeFile(FALSE);
+				break;
+			}
+			else {
+				ioobj->setFileOffset(session->fileobj->bytesSended);
+				ioobj->dataBuff.len = min(remain, TRANSMITFILE_MAX);
+				PostSendFile(session->fileobj->fileSock, session->fileobj->file, ioobj);
+				break;
+			}
+		}
+		default:
+			break;
+		}
 	}
-}
-
-unsigned __stdcall thread1(void *param)
-{
-	//Step 2: Construct socket	
-	SOCKET client;
-	client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	//Step 3: Specify server address
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(CMD_PORT);
-	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-
-	//Step 4: Request to connect server
-	if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
-		printf("Error! Cannot connect server. %d", WSAGetLastError());
-		_getch();
-		return 0;
-	}
-	printf("Connected server!\n");
-
-	//Step 5: Communicate with server
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
-	int ret;
-	strcpy(sBuff, "USER tungbt\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-
-	for (int i = 0; i < 5; i++) {
-		Sleep(10);
-		strcpy(sBuff, "POST Hello. I am tungbt\r\n");
-		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
-		rBuff[ret] = 0;
-		printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-	}
-
-	strcpy(sBuff, "QUIT \r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-
-	strcpy(sBuff, "USER test\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-
-	for (int i = 0; i < 5; i++) {
-		Sleep(10);
-		strcpy(sBuff, "POST Hello. I am test\r\n");
-		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
-		rBuff[ret] = 0;
-		printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-	}
-
-	//Step 6: Close socket
-	closesocket(client);
-	printf("Thread 1 end.\n");
-}
-
-unsigned __stdcall thread2(void *param)
-{
-	Sleep(10);
-	//Step 2: Construct socket	
-	SOCKET client;
-	client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	//Step 3: Specify server address
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(CMD_PORT);
-	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-
-	//Step 4: Request to connect server
-	if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
-		printf("Error! Cannot connect server. %d", WSAGetLastError());
-		_getch();
-		return 0;
-	}
-	printf("Connected server!\n");
-
-	//Step 5: Communicate with server
-	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
-	int ret;
-	strcpy(sBuff, "USER admin\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
-	for (int i = 0; i < 10; i++) {
-		Sleep(10);
-		strcpy(sBuff, "POST Hello. I am admin\r\n");
-		ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-		ret = recv(client, rBuff, BUFFSIZE, 0);
-		rBuff[ret] = 0;
-		printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
-	}
-
-	strcpy(sBuff, "QUIT \r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 1:  %s-->%s\n", sBuff, rBuff);
-
-	strcpy(sBuff, "USER ductq\r\n");
-	ret = send(client, sBuff, strlen(sBuff), 0); Sleep(100);
-	ret = recv(client, rBuff, BUFFSIZE, 0);
-	rBuff[ret] = 0;
-	printf("Thread 2:  %s-->%s\n", sBuff, rBuff);
-
-	//Step 6: Close socket
-	closesocket(client);
-	printf("Thread 2 end.\n");
 }

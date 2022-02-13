@@ -25,12 +25,14 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	if (session->fileobj != NULL)
 		session->closeFile(FALSE);
 
+	//Open existing file
 	hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
 	else {
+		//get file size
 		if (!GetFileSizeEx(hfile, &fileSize)) {
 			printf("GetFileSizeEx() failed with error %d\n", GetLastError());
 			return false;
@@ -49,6 +51,7 @@ bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) 
 	if (session->fileobj != NULL)
 		session->closeFile(TRUE);
 
+	//open new file
 	hfile = CreateFileA(fileName, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
 		printf("CreateFileA() failed with error %d\n", GetLastError());
@@ -205,12 +208,15 @@ void handleReply(LpSession session, const char *reply) {
 			return;
 		}
 
+		//session key
 		p2 = para[1].c_str();
+		//file size
 		p3 = para[2].c_str();
 
 		initMessage(request, CONNECT, p2);
 		session->fileobj->size = _atoi64(p3);
-		
+
+		//open file connection
 		session->fileobj->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		printf("Connecting to file port.....\n");
 		if (connect(session->fileobj->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
@@ -218,11 +224,14 @@ void handleReply(LpSession session, const char *reply) {
 			session->closeFile(TRUE);
 			break;
 		}
+		//send session key
 		blockSend(session->fileobj->fileSock, request);
 
 		printf("Receiving file.....\n");
+		//receive file
 		if (recvFile(session->fileobj->fileSock, session->fileobj->file, session->fileobj->size))
 			printf("Recieve file sucessful\n");
+
 		session->closeFile(FALSE);
 		break;
 	case STORE_SUCCESS:
@@ -231,9 +240,11 @@ void handleReply(LpSession session, const char *reply) {
 			return;
 		}
 
+		//session key
 		p2 = para[1].c_str();
 		initMessage(request, CONNECT, p2);
 
+		//open file connection
 		session->fileobj->fileSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		printf("Connecting to file port.....\n");
 		if (connect(session->fileobj->fileSock, (sockaddr *)&gFileAddr, sizeof(gFileAddr))) {
@@ -241,9 +252,11 @@ void handleReply(LpSession session, const char *reply) {
 			session->closeFile(FALSE);
 			break;
 		}
+		//send session key
 		blockSend(session->fileobj->fileSock, request);
 
 		printf("Sending file.....\n");
+		//send file
 		if (sendFile(session->fileobj->fileSock, session->fileobj->file, session->fileobj->size))
 			printf("Send file sucessful\n");
 		session->closeFile(FALSE);
@@ -257,30 +270,6 @@ void handleReply(LpSession session, const char *reply) {
 			printf("%s\n", p2);
 		}
 		break;
-	}
-}
-
-void parseReply(const char *reply, char *cmd, char *p1, char *p2) {
-	std::string strMess = reply;
-	std::string strCmd, strP1, strP2;
-	int lenStr = strMess.length(), crPos = strMess.find(HEADER_DELIMITER), spPos = strMess.find(PARA_DELIMITER);
-	if (crPos == -1) {
-		std::string strCmd = strMess.substr(0, lenStr);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
-	}
-	else {
-		strCmd = strMess.substr(0, crPos);
-		strcpy_s(cmd, BUFFSIZE, strCmd.c_str());
-		if (spPos == -1) {
-			strP1 = strMess.substr(crPos + 1, lenStr - crPos - 1);
-			strcpy_s(p1, BUFFSIZE, strP1.c_str());
-		}
-		else {
-			strP1 = strMess.substr(crPos + 1, spPos - crPos - 1);
-			strcpy_s(p1, BUFFSIZE, strP1.c_str());
-			strP2 = strMess.substr(spPos + 1, lenStr - spPos - 1);
-			strcpy_s(p2, BUFFSIZE, strP2.c_str());
-		}
 	}
 }
 
@@ -318,27 +307,13 @@ void newParseReply(const char *reply, char *cmd, std::vector<std::string> &para)
 	}
 }
 
-void usage() {
-	printf("Command are:\n");
-	printf("login <username> <password>\n");
-	printf("logout <username>\n");
-	printf("reg <username> <password>\n");
-	printf("get <path-to-file> <save-as>\n");
-	printf("put <path-to-file> <save-as>\n");
-	printf("rn <path-to-file> <new-name>\n");
-	printf("del <path-to-file>\n");
-	printf("mkdr <path-to-dir>\n");
-	printf("rmdr <path-to-dir>\n");
-	printf("cd <path-to-dir>\n");
-	printf("pwd <path-to-dir>\n");
-	printf("ls <path-to-dir>\n");
-}
-
 void initParam(char *param) {}
 
 template <typename P>
 void initParam(char *param, P p) {
 	std::ostringstream sstr;
+
+	//param + para
 	sstr << p;
 	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 }
@@ -347,8 +322,10 @@ template <typename P, typename... Args>
 void initParam(char *param, P p, Args... paras) {
 	std::ostringstream sstr;
 
+	//param + para + para delimiter
 	sstr << p << PARA_DELIMITER;
 	strcat_s(param, BUFFSIZE, sstr.str().c_str());
 
+	//recursion
 	initParam(param, paras...);
 }

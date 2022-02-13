@@ -16,13 +16,16 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		return NULL;
 	}
 
+	//creat accept event
 	newObj->acceptEvent = WSACreateEvent();
 
+	//creat new socket
 	if ((newObj->sock = WSASocketW(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET) {
 		printf("WSASocket() failed with error %d\n", WSAGetLastError());
 		return NULL;
 	}
 
+	//bind
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	inet_pton(AF_INET, SERVER_ADDR, &addr.sin_addr);
@@ -55,19 +58,6 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		printf("WSAIoctl: SIO_GET_EXTENSION_FUNCTION_POINTER failed with error %d\n", WSAGetLastError());
 		return NULL;
 	}
-
-	//Load GetAcceptExSockaddrs
-	rc = WSAIoctl(
-		newObj->sock,
-		SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guidGetAcceptExSockaddrs,
-		sizeof(guidGetAcceptExSockaddrs),
-		&newObj->lpfnGetAcceptExSockaddrs,
-		sizeof(newObj->lpfnGetAcceptExSockaddrs),
-		&bytes,
-		NULL,
-		NULL
-	);
 
 	if (rc == SOCKET_ERROR)
 	{

@@ -31,12 +31,13 @@ int main(int argc, char* argv[]) {
 	//Specify server address
 	char *serverIp = SERVER_ADDR;
 
-
+	//cmd addr
 	gCmdAddr.sin_family = AF_INET;
 	int cmdPort = CMD_PORT;
 	gCmdAddr.sin_port = htons(cmdPort);
 	inet_pton(AF_INET, serverIp, &gCmdAddr.sin_addr);
 
+	//file addr
 	gFileAddr.sin_family = AF_INET;
 	int filePort = FILE_PORT;
 	gFileAddr.sin_port = htons(filePort);
@@ -80,6 +81,7 @@ int main(int argc, char* argv[]) {
 
 		strcpy_s(buff, BUFFSIZE, "");
 		
+		//continue receive until buffer end with ENDING_DELIMITER
 		do {
 			bytes = blockRecv(session->cmdSock, buff, BUFFSIZE);
 			if (!bytes)
@@ -95,6 +97,7 @@ int main(int argc, char* argv[]) {
 			}
 
 			strcpy_s(buff, BUFFSIZE, reply);
+
 		} while (strlen(buff) != 0);
 	}
 

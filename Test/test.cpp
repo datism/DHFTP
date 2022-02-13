@@ -477,7 +477,7 @@ void handleReply(LpSession session, const char *reply) {
 			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		}
 
-		LPIO_OBJ sendobj = getIoObject(IO_OBJ::ACPT_F, request, strlen(request) + 1);
+		LPIO_OBJ sendobj = getIoObject(IO_OBJ::ACPT_F, request, strlen(request));
 		PostSend(session->fileobj->fileSock, sendobj);
 		break;
 	}

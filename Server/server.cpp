@@ -378,8 +378,6 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
  * @param transferredBytes 
  */
 void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Inout_ LPIO_OBJ acceptObj, _In_ DWORD transferredBytes) {
-	SOCKADDR_STORAGE *LocalSockaddr = NULL, 
-		*RemoteSockaddr = NULL;
 	LPIO_OBJ replyObj = NULL;
 	std::vector<std::string> para;
 	char reply[BUFFSIZE], cmd[BUFFSIZE] = "";
@@ -396,14 +394,14 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 
 	acceptObj->buffer[transferredBytes] = 0;
 	//buffer dont end with ending delimiter
-	if (strcmp(acceptObj->buffer + transferredBytes - strlen(ENDING_DELIMITER) - 1, ENDING_DELIMITER)) {
+	if (strcmp(acceptObj->buffer + transferredBytes - strlen(ENDING_DELIMITER), ENDING_DELIMITER)) {
 		closesocket(acceptObj->acceptSock);
 		freeIoObject(acceptObj);
 		session = NULL;
 		return;
 	}
 	else {
-		acceptObj->buffer[transferredBytes - strlen(ENDING_DELIMITER) - 1] = 0;
+		acceptObj->buffer[transferredBytes - strlen(ENDING_DELIMITER)] = 0;
 		newParseMess(acceptObj->buffer, cmd, para);
 	}
 

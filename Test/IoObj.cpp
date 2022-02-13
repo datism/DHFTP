@@ -6,7 +6,7 @@
 LPIO_OBJ getIoObject(IO_OBJ::OP operation, char * buffer, DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
-	if ((newobj = (LPIO_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IO_OBJ) + sizeof(BYTE) * length)) == NULL)
+	if ((newobj = (LPIO_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IO_OBJ) + sizeof(char) * length)) == NULL)
 		printf("HeapAlloc() failed with error %d\n", GetLastError());
 
 	if (newobj) {

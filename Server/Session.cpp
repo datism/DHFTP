@@ -21,7 +21,7 @@ void SESSION::closeFile(BOOL deleteFile) {
 
 	//close file
 	if (this->fileobj != NULL) {
-		//not delete file if file use for retrieve
+		//dont delete file if file use for retrieve
 		if (this->fileobj->operation == FILEOBJ::STOR) {
 			//mark file for delete after closehandle
 			FILE_DISPOSITION_INFO fdi;
@@ -31,7 +31,6 @@ void SESSION::closeFile(BOOL deleteFile) {
 				printf("SetFileInformationByHandle failed with error %d\n", GetLastError());
 			}
 		}
-
 		FreeFileObj(this->fileobj);
 		fileobj = NULL;
 	}

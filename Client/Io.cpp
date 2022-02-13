@@ -30,6 +30,7 @@ int blockRecv(SOCKET sock, char *recvBuff, DWORD length) {
 	DWORD receivedBytes = 0, flag = 0;
 	WSABUF dataBuff;
 
+	//set receive buffer if  receive buffer not empty
 	if (strlen(recvBuff) != 0)
 		dataBuff.buf = recvBuff + strlen(recvBuff);
 	else 

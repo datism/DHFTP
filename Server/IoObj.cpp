@@ -98,6 +98,7 @@ bool PostAcceptEx(LPLISTEN_OBJ listen, LPIO_OBJ acceptobj) {
 	DWORD bytes;
 	int rc;
 	
+	//creat new socket
 	acceptobj->acceptSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (acceptobj->acceptSock == INVALID_SOCKET) {
 		printf("socket() failed with error %d\n", WSAGetLastError());

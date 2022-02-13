@@ -10,21 +10,16 @@
 #define CMD_PORT 5500
 #define FILE_PORT 6600
 #define BUFFSIZE 4096
-
-#define	MAX_PENDING_ACCEPT 500
-#define MAX_CONCURENT_SESSION 15000
-#define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
-#define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
-#define TRANSMITFILE_MAX ((2<<30) - 1)
-
 #define MAX_SEND_PER_SESSION 5
 #define MAX_IOOBJ_PER_FILEOBJ 10
-
+#define MAX_CONCURENT_SESSION 15000
+#define TRANSMITFILE_MAX ((2<<30) - 1)
+#define SIZE_OF_ADDRESS sizeof(SOCKADDR_STORAGE) + 16
+#define SIZE_OF_ADDRESSES SIZE_OF_ADDRESS * 2
 
 #define ENDING_DELIMITER "\r\n\r\n"
 #define HEADER_DELIMITER "\r\n"
 #define PARA_DELIMITER "\r"
-
 
 #define LOGIN "LOGI"
 #define LOGOUT "LOGO"
@@ -42,7 +37,9 @@
 #define RECEIVE "RECV"
 #define CONNECT "CNCT"
 
+//listen for new cmd connection
 extern LPLISTEN_OBJ gCmdListen;
+//listen for new listen connection
 extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;

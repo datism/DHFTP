@@ -530,7 +530,7 @@ unsigned __stdcall fileTest(void *param) {
 		session->fileobj = GetFileObj(hfile, filesize.QuadPart, FILEOBJ::STOR);
 		initMessage(sBuf, STORE, t + i, session->fileobj->size);
 
-		LPIO_OBJ sendobj = getIoObject(IO_OBJ::SEND_C, sBuf, strlen(sBuf) + 1);
+		LPIO_OBJ sendobj = getIoObject(IO_OBJ::SEND_C, sBuf, strlen(sBuf));
 		PostSend(session->cmdSock, sendobj);
 	}
 }

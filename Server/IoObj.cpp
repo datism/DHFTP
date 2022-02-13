@@ -18,7 +18,7 @@ LPIO_OBJ getIoObject(IO_OBJ::OP operation, char * buffer, DWORD length) {
 		newobj->dataBuff.buf = newobj->buffer;
 
 		if (buffer != NULL)
-			strcpy_s(newobj->buffer, length, buffer);
+			memcpy_s(newobj->buffer, length, buffer, length);
 	}
 
 	return newobj;

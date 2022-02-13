@@ -43,7 +43,7 @@ typedef struct IO_OBJ {
  * 
  * @param operation ioobj operaion
  * @param buffer if not null copy to buffer
- * @param length length of buffer (include '/0')
+ * @param length length of buffer 
  * @return new ioobj or null if dont have enough memory
  */
 _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);

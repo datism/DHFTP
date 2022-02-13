@@ -220,7 +220,7 @@ void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ 
 		if (strlen(reply) == 0)
 			break;
 
-		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
+		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 		if (replyObj == NULL)
 			break;
 
@@ -435,7 +435,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 
 		initMessage(reply, RESPONE, SERVER_FAIL, "CreateIoCompletionPort failed");
-		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
+		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 		session->EnListPendingOperation(replyObj);
 	}
 
@@ -460,7 +460,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 				recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, BUFFSIZE);
 				if (recvFobj == NULL) {
 					initMessage(reply, RESPONE, SERVER_FAIL, "Heap out of memory?");
-					replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply) + 1);
+					replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 					session->EnListPendingOperation(replyObj);
 					break;
 				}

@@ -18,6 +18,10 @@ void RegisterRequest(char *sendBuff, const char *username, const char *password)
 	initMessage(sendBuff, REGISTER, username, password);
 }
 
+void ChangePasRequest(char *sendBuff, const char *oPassword, const char *nPassword) {
+	initMessage(sendBuff, CHANGEPASS, oPassword, nPassword);
+}
+
 bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 	HANDLE hfile;
 	LARGE_INTEGER fileSize;
@@ -96,7 +100,7 @@ void ListDirRequest(char *sendBuf, const char *dirPath) {
 void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	strcpy_s(sendBuff, BUFFSIZE, "");
 	int choice;
-	char p1[BUFFSIZE], p2[BUFFSIZE];
+	char p1[BUFFSIZE], p2[BUFFSIZE], p3[BUFFSIZE];
 
 	while (1) {
 		printf("\nChoose service: ");
@@ -129,8 +133,16 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 				gets_s(p2, BUFFSIZE);
 				RegisterRequest(sendBuff, p1, p2);
 				return;
-			//Store file
+			//Change pass
 			case 4:
+				printf("Enter old password: ");
+				gets_s(p1, BUFFSIZE);
+				printf("Enter new password: ");
+				gets_s(p2, BUFFSIZE);
+				ChangePasRequest(sendBuff, p1, p2);
+				return;
+			//Store file
+			case 5:
 				printf("Enter file name: ");
 				gets_s(p1, BUFFSIZE);
 				/*strcpy_s(p1, BUFFSIZE, "testbig.rar");*/
@@ -138,44 +150,44 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 					break;
 				return;
 			//Retrieve
-			case 5:
+			case 6:
 				printf("Enter file name: ");
 				gets_s(p1, BUFFSIZE);
 				/*strcpy_s(p1, BUFFSIZE, "testmid.rar");*/
 				if (!RetrieveRequest(session, sendBuff, p1))
 					break;
 				return;
-			case 6:
+			case 7:
 				printf("Enter server file path: ");
 				gets_s(p1, BUFFSIZE);
 				printf("Enter new name: ");
 				gets_s(p2, BUFFSIZE);
 				RenameRequest(sendBuff, p1, p2);
 				return;
-			case 7:
+			case 8:
 				printf("Enter server file path: ");
 				gets_s(p1, BUFFSIZE);
 				DeleteRequest(sendBuff, p1);
 				return;
-			case 8:
+			case 9:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				MakeDirRequest(sendBuff, p1);
 				return;
-			case 9:
+			case 10:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				RemoveDirRequest(sendBuff, p1);
 				return;
-			case 10:
+			case 11:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				ChangeWDirRequest(sendBuff, p1);
 				return;
-			case 11:
+			case 12:
 				PrintWDirRequest(sendBuff);
 				return;
-			case 12:
+			case 13:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				ListDirRequest(sendBuff, p1);

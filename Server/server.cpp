@@ -20,17 +20,15 @@ SQLHANDLE gSqlStmtHandle;
 LPLISTEN_OBJ gCmdListen;
 LPLISTEN_OBJ gFileListen;
 CRITICAL_SECTION gCriticalSection;
-std::set<ULONG> gSessionSet;
+std::set<ULONG_PTR> gSessionSet;
 int gInitialAccepts = 100;
 
 unsigned __stdcall serverWorkerThread(LPVOID completionPortID);
 
 int main(int argc, char *argv[]) {
 	SYSTEM_INFO systemInfo;
-	SOCKET acceptSock;
 	WSANETWORKEVENTS sockEvent;
-	LPSESSION session;
-	LPIO_OBJ receiveObj, acceptobj;
+	LPIO_OBJ acceptobj;
 	WSAEVENT waitEvents[WSA_MAXIMUM_WAIT_EVENTS];
 	int rc, waitCount = 0;
 
@@ -125,7 +123,7 @@ int main(int argc, char *argv[]) {
 					FreeListenObj(gFileListen);
 
 					EnterCriticalSection(&gCriticalSection);
-					for (ULONG session : gSessionSet)
+					for (ULONG_PTR session : gSessionSet)
 						freeSession((LPSESSION)session);
 					LeaveCriticalSection(&gCriticalSection);
 
@@ -145,14 +143,16 @@ int main(int argc, char *argv[]) {
 						if (sockEvent.lNetworkEvents & FD_ACCEPT) {
 							EnterCriticalSection(&gCriticalSection);
 							//Dont accept connection if session count over limit
-							if (gSessionSet.size() + gInitialAccepts < MAX_CONCURENT_SESSION) {
-								for (int i = 0; i < gInitialAccepts; ++i) {
+							if (gSessionSet.size() < MAX_CONCURENT_SESSION) {
+								for (int i = 0; i < gInitialAccepts && gCmdListen->count < MAX_OUSTANDING_ACCEPTCMD; ++i) {
 									acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
 									if (acceptobj == NULL) {
 										printf("Out of memory!\n");
+										LeaveCriticalSection(&gCriticalSection);
 										return -1;
 									}
 									if (!PostAcceptEx(gCmdListen, acceptobj)) {
+										LeaveCriticalSection(&gCriticalSection);
 										return -1;
 									}
 									InterlockedIncrement(&gCmdListen->count);
@@ -171,10 +171,12 @@ int main(int argc, char *argv[]) {
 							acceptobj = getIoObject(IO_OBJ::ACPT_F, NULL, BUFFSIZE);
 							if (acceptobj == NULL) {
 								printf("Out of memory!\n");
+								LeaveCriticalSection(&gCriticalSection);
 								return -1;
 							}
 
 							if (!PostAcceptEx(gFileListen, acceptobj)) {
+								LeaveCriticalSection(&gCriticalSection);
 								return -1;
 							}
 
@@ -199,7 +201,7 @@ int main(int argc, char *argv[]) {
  * @param transferredBytes 
  */
 void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ DWORD transferredBytes) {
-	recieveObj->buffer[transferredBytes] = 0;
+	recieveObj->dataBuff.buf[transferredBytes] = 0;
 	LPIO_OBJ replyObj;
 	char *mess = recieveObj->buffer,
 		*pos = NULL,
@@ -384,14 +386,6 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 
 	printf("File Socket number %d got connected...\n", acceptObj->acceptSock);
 
-	//inherit properties of listen socket 
-	if (setsockopt(acceptObj->acceptSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-		(char *)&listenobj->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
-		printf("setsockopt failed with error %d\n", WSAGetLastError());
-		closesocket(acceptObj->acceptSock);
-		freeIoObject(acceptObj);
-	}
-
 	acceptObj->buffer[transferredBytes] = 0;
 	//buffer dont end with ending delimiter
 	if (strcmp(acceptObj->buffer + transferredBytes - strlen(ENDING_DELIMITER), ENDING_DELIMITER)) {
@@ -419,7 +413,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 	EnterCriticalSection(&gCriticalSection);
 
 	//session doesnt exsit or have been closed
-	if (gSessionSet.find((ULONG)session) == gSessionSet.end()) {
+	if (gSessionSet.find((ULONG_PTR)session) == gSessionSet.end()) {
 		closesocket(acceptObj->acceptSock);
 		freeIoObject(acceptObj);
 		session = NULL;
@@ -453,6 +447,14 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 		case FILEOBJ::STOR:
 			LPIO_OBJ recvFobj;
 			int i = 0;
+
+			//inherit graceful close
+			if (setsockopt(session->fileobj->fileSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+				(char *)&listenobj->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
+				printf("setsockopt failed with error %d\n", WSAGetLastError());
+				closesocket(acceptObj->acceptSock);
+				freeIoObject(acceptObj);
+			}
 
 			//Receive and write file in chunks
 			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
@@ -499,6 +501,8 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
 
 
 	session = getSession();
+	if (session == NULL)
+		return;
 	session->cmdSock = acceptObj->acceptSock;
 
 	//attach new socket to completionport
@@ -513,7 +517,7 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
 
 	//insert session
 	EnterCriticalSection(&gCriticalSection);
-	gSessionSet.insert((ULONG)session);
+	gSessionSet.insert((ULONG_PTR)session);
 	LeaveCriticalSection(&gCriticalSection);
 
 	//reuse acceptobj
@@ -528,7 +532,7 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
  */
 void ProcessPendingOperations(_In_ LPSESSION session) {
 	EnterCriticalSection(&session->cs);
-	bool noError;
+	bool noError = FALSE;
 
 	while (!session->pending->empty()) {
 		LPIO_OBJ ioobj = session->pending->front();
@@ -624,6 +628,11 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 		if (ioobj->operation == IO_OBJ::ACPT_F || ioobj->operation == IO_OBJ::ACPT_C) {
 			listen = (LPLISTEN_OBJ) key;
 
+			if (listen == NULL) {
+				freeIoObject(ioobj);
+				continue;
+			}
+
 			switch (ioobj->operation) {
 				case IO_OBJ::ACPT_C: handleAcceptCmd(listen, session, ioobj, transferredBytes); break;
 				case IO_OBJ::ACPT_F: handleAcceptFile(listen, session, ioobj, transferredBytes); break;
@@ -634,6 +643,11 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 		}	
 		else {
 			session = (LPSESSION) key;
+
+			if (session == NULL) {
+				freeIoObject(ioobj);
+				continue;
+			}
 
 			//session is closing
 			if (InterlockedCompareExchange(&session->bclosing, 0, 0) != 0) {
@@ -660,7 +674,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 				
 				//delete session
 				EnterCriticalSection(&gCriticalSection);
-				gSessionSet.erase((ULONG)session);
+				gSessionSet.erase((ULONG_PTR)session);
 				freeSession(session);
 				LeaveCriticalSection(&gCriticalSection);
 			}

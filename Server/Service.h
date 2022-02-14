@@ -6,7 +6,7 @@
 
 void handleLOGIN(LPSESSION session, const char *username, const char *password, char *reply);
 
-void changePass(LPSESSION session, char *reply);
+void handleChangePass(LPSESSION session, const char *oPass, const char *nPass, char * reply);
 
 void handleLOGOUT(LPSESSION session, char *reply);
 
@@ -69,7 +69,7 @@ void initParam(_Out_ char *param);
  * @param p 
  */
 template <typename P>
-void initParam(_Out_ char *param, P p);
+void initParam(_Out_ char *param, _In_ P p);
 
 /**
  * @brief apending parameters into param according to protocol
@@ -79,7 +79,7 @@ void initParam(_Out_ char *param, P p);
  * @param paras 
  */
 template <typename P, typename... Args>
-void initParam(_Out_ char *param, _In_ P p, _In_ Args... paras);
+void initParam(_Out_ char *param, _In_ P p, _In_opt_ Args... paras);
 
 /**
  * @brief initialize message according to protocol
@@ -89,7 +89,7 @@ void initParam(_Out_ char *param, _In_ P p, _In_ Args... paras);
  * @param paras parameters
  */
 template <typename... Args>
-void initMessage(char *mess, const char *header, Args... paras) {
+void initMessage(_Out_ char *mess, _In_ const char *header, _In_opt_ Args... paras) {
 	char param[BUFFSIZE] = "";
 
 	initParam(param, paras...);

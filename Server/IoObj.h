@@ -104,4 +104,4 @@ bool PostSendFile(_In_ SOCKET sock, _In_ HANDLE hfile, _In_ LPIO_OBJ sendFObj);
  * @return true if acceptEx doesnt fail 
  * @return false if acceptEx fail
  */
-bool PostAcceptEx(_In_ LPLISTEN_OBJ listen, LPIO_OBJ acceptobj);
+bool PostAcceptEx(_In_ LPLISTEN_OBJ listen, _In_ LPIO_OBJ acceptobj);

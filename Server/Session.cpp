@@ -10,7 +10,7 @@ void SESSION::setWorkingDir(const char * iWorkingDir) {
 	strcpy_s(this->workingDir, MAX_PATH, iWorkingDir);
 }
 
-void SESSION::EnListPendingOperation(LPIO_OBJ ioObj){
+void SESSION::EnListPendingOperation(_In_ LPIO_OBJ ioObj){
 	EnterCriticalSection(&this->cs);
 	this->pending->push_back(ioObj);
 	LeaveCriticalSection(&this->cs);
@@ -38,7 +38,7 @@ void SESSION::closeFile(BOOL deleteFile) {
 	LeaveCriticalSection(&this->cs);
 }
 
-LPSESSION getSession() {
+_Ret_maybenull_ LPSESSION getSession() {
 	LPSESSION session;
 
 	if ((session = (LPSESSION)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(SESSION))) == NULL)
@@ -52,7 +52,7 @@ LPSESSION getSession() {
 	return session;
 }
 
-void freeSession(LPSESSION session) {
+void freeSession(_In_ LPSESSION session) {
 	//logout
 	if (strlen(session->username) != 0) {
 		char s[BUFFSIZE]= "";

@@ -11,6 +11,8 @@ void LogoutRequest(_Inout_ char * sendBuff);
 
 void RegisterRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ const char * password);
 
+void ChangePasRequest(char * sendBuff, const char * oPassword, const char * nPassword);
+
 bool StoreRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
 
 bool RetrieveRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);

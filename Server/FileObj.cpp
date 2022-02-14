@@ -1,7 +1,7 @@
 #include "FileObj.h"
 #include <stdio.h>
 
-LPFILEOBJ GetFileObj(HANDLE hfile, LONG64 size, FILEOBJ::OP op) {
+_Ret_maybenull_ LPFILEOBJ GetFileObj(_In_ HANDLE hfile, _In_ LONG64 size, _In_ FILEOBJ::OP op) {
 	LPFILEOBJ newobj = NULL; 
 
 	if ((newobj = (LPFILEOBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(FILEOBJ))) == NULL)
@@ -16,7 +16,7 @@ LPFILEOBJ GetFileObj(HANDLE hfile, LONG64 size, FILEOBJ::OP op) {
 	return newobj;
 }
 
-void FreeFileObj(LPFILEOBJ fileobj) {
+void FreeFileObj(_In_ LPFILEOBJ fileobj) {
 	//close file connection
 	if (fileobj->fileSock != 0) {
 		printf("Closing file socket %d\n", fileobj->fileSock);
@@ -25,7 +25,7 @@ void FreeFileObj(LPFILEOBJ fileobj) {
 		}
 	}
 	//close file handle
-	printf("Closing file hanlde %d\n", fileobj->file);
+	printf("Closing file handle\n");
 	if (!CloseHandle(fileobj->file)) {
 		printf("CloseHandle failed with error %d\n", GetLastError());
 	}

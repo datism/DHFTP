@@ -12,8 +12,6 @@
 sockaddr_in gCmdAddr;
 sockaddr_in gFileAddr;
 
-void parseReply(char *reply, char *header, char *p1, char *p2);
-
 int main(int argc, char* argv[]) {
 	// Validate the parameters
 	/*if (argc != 3)
@@ -64,15 +62,16 @@ int main(int argc, char* argv[]) {
 	printf("1.LOGIN\n");
 	printf("2.LOGOUT\n");
 	printf("3.REGISTER\n");
-	printf("4.STORE FILE\n");
-	printf("5.RETRIEVE FILE\n");
-	printf("6.RENAME FILE\n");
-	printf("7.DELETE FILE\n");
-	printf("8.MAKE DIRECTORY\n");
-	printf("9.REMOVE DIRECTORY\n");
-	printf("10.CHANGE WROKING DIRECTORY\n");
-	printf("11.PRINT WORKING DIRECTORY\n");
-	printf("12.LIST DIRECTORY\n\n");
+	printf("4.CHANGE PASS\n");
+	printf("5.STORE FILE\n");
+	printf("6.RETRIEVE FILE\n");
+	printf("7.RENAME FILE\n");
+	printf("8.DELETE FILE\n");
+	printf("9.MAKE DIRECTORY\n");
+	printf("10.REMOVE DIRECTORY\n");
+	printf("11.CHANGE WROKING DIRECTORY\n");
+	printf("12.PRINT WORKING DIRECTORY\n");
+	printf("13.LIST DIRECTORY\n\n");
 
 
 	while (1) {
@@ -83,7 +82,7 @@ int main(int argc, char* argv[]) {
 		
 		//continue receive until buffer end with ENDING_DELIMITER
 		do {
-			bytes = blockRecv(session->cmdSock, buff, BUFFSIZE);
+			bytes = blockRecv(session->cmdSock, buff + strlen(buff), BUFFSIZE);
 			if (!bytes)
 				break;
 

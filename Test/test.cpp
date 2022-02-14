@@ -121,15 +121,15 @@ int main(int argc, char* argv[])
 	gFileAddr.sin_port = htons(FILE_PORT);
 	inet_pton(AF_INET, SERVER_ADDR, &gFileAddr.sin_addr);
 
-	////Step 4: Request to connect server
-	//if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {
-	//	printf("Error! Cannot connect server. %d", WSAGetLastError());
-	//	_getch();
-	//	return 0;
-	//}
-	//printf("Connected server!\n");
-	//int tv = 100; //Time-out interval: 100ms
-	//setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv), sizeof(int));
+	//Step 4: Request to connect server
+	if (connect(client, (sockaddr *)&gCmdAddr, sizeof(gCmdAddr))) {
+		printf("Error! Cannot connect server. %d", WSAGetLastError());
+		_getch();
+		return 0;
+	}
+	printf("Connected server!\n");
+	int tv = 100; //Time-out interval: 100ms
+	setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, (const char*)(&tv), sizeof(int));
 	//Step 5: Communicate with server
 	char sBuff[BUFFSIZE], rBuff[BUFFSIZE];
 	int ret;
@@ -218,9 +218,9 @@ int main(int argc, char* argv[])
 	//printf("Main: %s-->%s\n", sBuff, rBuff);
 
 	////Stream testing
-	//strcpy(sBuff, "USER admin\r\nPOST Hello world\r\nPOST Test stream\r\n");
+	//strcpy_s(sBuff, BUFFSIZE, "USER admin\r\n\r\nPOST Hello world\r\n\r\nPOST Test stream\r\n\r\n");
 	//ret = send(client, sBuff, strlen(sBuff), 0);
-	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//ret = recv(client, rBuff, BUFFSIZE, 0);
 	//if (ret < 0)
 	//	printf("Stream test 1 fail!\n");
 	//else {
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
 	//	printf("Main: %s-->%s\n", sBuff, rBuff);
 	//}
 
-	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//ret = recv(client, rBuff, BUFFSIZE, 0);
 	//if (ret < 0)
 	//	printf("Stream test 1 fail!\n");
 	//else {
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
 	//	printf("Main: %s-->%s\n", sBuff, rBuff);
 	//}
 
-	//ret = recv(client, rBuff, BUFF_SIZE, 0);
+	//ret = recv(client, rBuff, BUFFSIZE, 0);
 	//if (ret < 0)
 	//	printf("Stream test 1 fail!\n");
 	//else {
@@ -244,21 +244,21 @@ int main(int argc, char* argv[])
 	//	printf("Main: %s-->%s\n", sBuff, rBuff);
 	//}
 
-	//strcpy(sBuff, "POST I am tungbt");
-	//ret = send(client, sBuff, strlen(sBuff), 0);
-	//ret = recv(client, rBuff, BUFF_SIZE, 0);
-	//if (ret > 0)
-	//	printf("Stream test 2 fail!\n");
+	strcpy_s(sBuff, BUFFSIZE, "POST I am tungbt");
+	ret = send(client, sBuff, strlen(sBuff), 0);
+	ret = recv(client, rBuff, BUFFSIZE, 0);
+	if (ret > 0)
+		printf("Stream test 2 fail!\n");
 
-	//strcpy(sBuff, "\r\n");
-	//ret = send(client, sBuff, strlen(sBuff), 0);
-	//ret = recv(client, rBuff, BUFF_SIZE, 0);
-	//if (ret < 0)
-	//	printf("Stream test 2 fail!\n");
-	//else {
-	//	rBuff[ret] = 0;
-	//	printf("Main: %s-->%s\n", sBuff, rBuff);
-	//}
+	strcpy_s(sBuff, BUFFSIZE, "\r\n\r\n");
+	ret = send(client, sBuff, strlen(sBuff), 0);
+	ret = recv(client, rBuff, BUFFSIZE, 0);
+	if (ret < 0)
+		printf("Stream test 2 fail!\n");
+	else {
+		rBuff[ret] = 0;
+		printf("Main: %s-->%s\n", sBuff, rBuff);
+	}
 
 	//_getch();
 
@@ -314,7 +314,7 @@ int main(int argc, char* argv[])
 	//		closesocket(clients[i]);
 	//}
 
-	HANDLE theards[WSA_MAXIMUM_WAIT_EVENTS];
+	//HANDLE theards[WSA_MAXIMUM_WAIT_EVENTS];
 
 	////Concurency test 3
 	//int numThread;
@@ -322,6 +322,9 @@ int main(int argc, char* argv[])
 	//scanf_s("%d", &numThread);
 	//for (int i = 0; i < numThread; i++)
 	//	theards[i] = (HANDLE) _beginthreadex(0, 0, thread, 0, 0, 0);
+
+	getchar();
+	getchar();
 
 	if ((gCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0)) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
@@ -336,11 +339,11 @@ int main(int argc, char* argv[])
 	}
 
 	//Concurency test 4
-	int numThread;
+	int numThread1;
 	printf("Number of threads:");
-	scanf_s("%d", &numThread);
-	for (int i = 0; i < numThread; i++) {
-		theards[i] = (HANDLE)_beginthreadex(0, 0, fileTest, (void *)i, 0, 0);
+	scanf_s("%d", &numThread1);
+	for (int i = 0; i < numThread1; i++) {
+		_beginthreadex(0, 0, fileTest, (void *)i, 0, 0);
 	}
 
 
@@ -494,9 +497,9 @@ void handleReply(LpSession session, const char *reply) {
 }
 
 unsigned __stdcall fileTest(void *param) {
-	int numcon = 100;
+	int numcon = 10;
 	HANDLE hfile;
-	char *fileName = "testmid.rar";
+	char *fileName = "testmid";
 	LARGE_INTEGER filesize;
 	LpSession session;
 	int bytes;
@@ -530,6 +533,7 @@ unsigned __stdcall fileTest(void *param) {
 		session->fileobj = GetFileObj(hfile, filesize.QuadPart, FILEOBJ::STOR);
 		initMessage(sBuf, STORE, t + i, session->fileobj->size);
 
+		printf("FILE: %d\n", t + i);
 		LPIO_OBJ sendobj = getIoObject(IO_OBJ::SEND_C, sBuf, strlen(sBuf));
 		PostSend(session->cmdSock, sendobj);
 	}

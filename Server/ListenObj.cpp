@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "EnvVar.h"
 
-LPLISTEN_OBJ getListenObj(WORD port) {
+_Ret_maybenull_ LPLISTEN_OBJ getListenObj(_In_ WORD port) {
 	LPLISTEN_OBJ newObj = NULL;
 	GUID guidAcceptEx = WSAID_ACCEPTEX, 
 		guidGetAcceptExSockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
@@ -59,12 +59,6 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 		return NULL;
 	}
 
-	if (rc == SOCKET_ERROR)
-	{
-		printf("WSAIoctl: SIO_GET_EXTENSION_FUNCTION_POINTER failed with error %d\n", WSAGetLastError());
-		return NULL;
-	}
-
 	//Listen
 	rc = listen(newObj->sock, 200);
 	if (rc == SOCKET_ERROR)
@@ -76,7 +70,7 @@ LPLISTEN_OBJ getListenObj(WORD port) {
 	return newObj;
 }
 
-void FreeListenObj(LPLISTEN_OBJ listenobj) {
+void FreeListenObj(_In_ LPLISTEN_OBJ listenobj) {
 	printf("Close listen socket %d\n", listenobj->sock);
 	if (closesocket(listenobj->sock) == SOCKET_ERROR) {
 		printf("closesocket failed with error %d\n", WSAGetLastError());

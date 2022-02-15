@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 	printf("1.LOGIN\n");
 	printf("2.LOGOUT\n");
 	printf("3.REGISTER\n");
-	printf("4.CHANGE PASS\n");
+	printf("4.CHANGE PASSWORD\n");
 	printf("5.STORE FILE\n");
 	printf("6.RETRIEVE FILE\n");
 	printf("7.RENAME FILE\n");

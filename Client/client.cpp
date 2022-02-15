@@ -58,20 +58,7 @@ int main(int argc, char* argv[]) {
 	session = getSession();
 	session->cmdSock = cmdSock;
 
-	printf("1.LOGIN\n");
-	printf("2.LOGOUT\n");
-	printf("3.REGISTER\n");
-	printf("4.CHANGE PASSWORD\n");
-	printf("5.STORE FILE\n");
-	printf("6.RETRIEVE FILE\n");
-	printf("7.RENAME FILE/FOLDER\n");
-	printf("8.DELETE FILE\n");
-	printf("9.MAKE DIRECTORY\n");
-	printf("10.REMOVE DIRECTORY\n");
-	printf("11.CHANGE WROKING DIRECTORY\n");
-	printf("12.PRINT WORKING DIRECTORY\n");
-	printf("13.LIST DIRECTORY\n\n");
-
+	Help();
 
 	while (1) {
 		chooseService(session, buff);
@@ -98,9 +85,6 @@ int main(int argc, char* argv[]) {
 
 		} while (strlen(buff) != 0);
 	}
-
-	FreeSession(session);
-	WSACleanup();
 
 	return 0;
 }

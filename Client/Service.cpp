@@ -204,6 +204,13 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 				gets_s(p1, BUFFSIZE);
 				ListDirRequest(sendBuff, p1);
 				return;
+			case 14:
+				Help();
+				break;
+			case 15:
+				FreeSession(session);
+				WSACleanup();
+				ExitProcess(-1);
 			//Invalid input
 			default: printf("Invalid input, choose again.\n"); 
 		}
@@ -295,6 +302,24 @@ void handleReply(LpSession session, const char *reply) {
 		}
 		break;
 	}
+}
+
+void Help() {
+	printf("1.LOGIN\n");
+	printf("2.LOGOUT\n");
+	printf("3.REGISTER\n");
+	printf("4.CHANGE PASSWORD\n");
+	printf("5.STORE FILE\n");
+	printf("6.RETRIEVE FILE\n");
+	printf("7.RENAME FILE/FOLDER\n");
+	printf("8.DELETE FILE\n");
+	printf("9.MAKE DIRECTORY\n");
+	printf("10.REMOVE DIRECTORY\n");
+	printf("11.CHANGE WORKING DIRECTORY\n");
+	printf("12.PRINT WORKING DIRECTORY\n");
+	printf("13.LIST DIRECTORY\n");
+	printf("14.HELP\n");
+	printf("15.EXIT\n\n");
 }
 
 void newParseReply(const char *reply, char *cmd, std::vector<std::string> &para) {

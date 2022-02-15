@@ -21,6 +21,8 @@ void chooseService(_Inout_ LpSession session, _Inout_ char *sendBuff);
 
 void handleReply(_Inout_ LpSession session, _In_ const char *reply);
 
+void Help();
+
 void newParseReply(const char *reply, char * cmd, std::vector<std::string>& para);
 
 /**

@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 	printf("4.CHANGE PASSWORD\n");
 	printf("5.STORE FILE\n");
 	printf("6.RETRIEVE FILE\n");
-	printf("7.RENAME FILE\n");
+	printf("7.RENAME FILE/FOLDER\n");
 	printf("8.DELETE FILE\n");
 	printf("9.MAKE DIRECTORY\n");
 	printf("10.REMOVE DIRECTORY\n");

@@ -285,7 +285,7 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 	WSASetEvent(gFileListen->acceptEvent);
 	LeaveCriticalSection(&gCriticalSection);
 
-	initParam(reply, RETRIEVE_SUCCESS, (ULONG)session, fileobj->size);
+	initParam(reply, RETRIEVE_SUCCESS, (ULONG_PTR)session, fileobj->size);
 }
 
 void handleSTORE(LPSESSION session, const char * filename, const char *fileSize, char *reply) {
@@ -359,7 +359,7 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 	LeaveCriticalSection(&gCriticalSection);
 
 
-	initParam(reply, STORE_SUCCESS, (ULONG)session);
+	initParam(reply, STORE_SUCCESS, (ULONG_PTR)session);
 }
 
 void handleRENAME(LPSESSION session, const char *pathname, const char *newname, char *reply) {

@@ -408,7 +408,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 	}
 
 	//param is session
-	session = (LPSESSION) atol(para[0].c_str());
+	session = (LPSESSION) atoll(para[0].c_str());
 		
 	EnterCriticalSection(&gCriticalSection);
 

@@ -18,11 +18,14 @@ LPFILEOBJ GetFileObj(HANDLE hfile, LONG64 size, FILEOBJ::OP op) {
 
 void FreeFileObj(LPFILEOBJ fileobj) {
 	//close file connection
-	printf("Closing file socket %d\n", fileobj->fileSock);
-	if (closesocket(fileobj->fileSock) == SOCKET_ERROR) {
-		printf("closesocket failed with error %d\n", WSAGetLastError());
+	if (fileobj->fileSock != 0) {
+		printf("Closing file socket %d\n", fileobj->fileSock);
+		if (closesocket(fileobj->fileSock) == SOCKET_ERROR) {
+			printf("closesocket failed with error %d\n", WSAGetLastError());
+		}
 	}
 	//close file handle
+	printf("Closing file handle\n");
 	if (!CloseHandle(fileobj->file)) {
 		printf("CloseHandle failed with error %d\n", GetLastError());
 	}

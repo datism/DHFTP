@@ -13,9 +13,9 @@ void RegisterRequest(_Inout_ char * sendBuff, _In_ const char * username, _In_ c
 
 void ChangePasRequest(char * sendBuff, const char * oPassword, const char * nPassword);
 
-bool StoreRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
+bool StoreRequest(LpSession session, char * sendBuff, const char * localFile, const char * remoteFile);
 
-bool RetrieveRequest(_Inout_ LpSession session, _Inout_ char * sendBuff, _In_ const char * fileName);
+bool RetrieveRequest(LpSession session, char * sendBuff, const char * localFile, const char * remoteFile);
 
 void chooseService(_Inout_ LpSession session, _Inout_ char *sendBuff);
 

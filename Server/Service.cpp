@@ -242,12 +242,6 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 		session->setWorkingDir("test");
 	}
 
-	//check file name
-	if (!checkName(filename)) {
-		initParam(reply, WRONG_SYNTAX, "Retrive failed. Invalid file name");
-		return;
-	}
-
 	//Check access and get full path
 	if (!checkAccess(session, filename, fullPath)) {
 		initParam(reply, NO_ACCESS, "Retrive failed. Dont have access to this file");
@@ -305,12 +299,6 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 		return;*/
 		session->setUsername("test");
 		session->setWorkingDir("test");
-	}
-
-	//check file name
-	if (!checkName(filename)) {
-		initParam(reply, WRONG_SYNTAX, "Store failed. Invalid file name");
-		return;
 	}
 
 	//Check param
@@ -582,7 +570,9 @@ void handleCHANGEWDIR(LPSESSION session, const char *pathname, char *reply) {
 }
 
 void handlePRINTWDIR(LPSESSION session, char *reply) {
-	char *workingDir;
+	char workingDir[MAX_PATH] = "";
+	char rootPath[MAX_PATH] = "", workingPath[MAX_PATH] = "";
+	DWORD rootlength;
 
 	//Check if logged in
 	if (strlen(session->username) == 0) {
@@ -590,8 +580,13 @@ void handlePRINTWDIR(LPSESSION session, char *reply) {
 		return;
 	}
 
-	//print working directory
-	workingDir = strstr(session->workingDir, session->username);
+	//Get full root
+	rootlength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
+	//Get full working dir
+	checkAccess(session, ".", workingPath);
+
+	//Get short form of working dir
+	sprintf_s(workingDir, MAX_PATH, "%s%s", HOME, strstr(workingPath, rootPath) + strlen(rootPath));
 
 	initParam(reply, PRINTWDIR_SUCCESS, workingDir);
 }
@@ -865,21 +860,22 @@ void newParseMess(char *mess, char *cmd, std::vector<std::string> &para) {
 }
 
 bool checkAccess(LPSESSION session, _In_ const char *path, _Out_ char *fullPath) {
-	_ASSERT_EXPR(sizeof(fullPath) != MAX_PATH, "Buffer overrun");
-
 	char rootPath[MAX_PATH];
 	char temp[MAX_PATH];
 
-	sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
+	if (strstr(path, HOME) == path)
+			sprintf_s(temp, MAX_PATH, "%s%s", session->username, strlen(path) > 1 ? path + 1 : "");
+	else
+		sprintf_s(temp, MAX_PATH, "%s%s%s", session->workingDir, "\\", path);
 
 	DWORD rootLength = GetFullPathNameA(session->username, MAX_PATH, rootPath, NULL);
 	DWORD pathLength = GetFullPathNameA(temp, MAX_PATH, fullPath, NULL);
 
-	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != NULL) {
+	if (rootLength != 0 && pathLength != 0 && strstr(fullPath, rootPath) != rootPath) {
 		return TRUE;
 	}
 	
-	//path invalid or dont contain root path
+	//path invalid or dont start root path
 	strcpy_s(fullPath, MAX_PATH, "");
 	return FALSE;
 }

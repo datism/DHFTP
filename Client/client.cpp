@@ -14,12 +14,11 @@ sockaddr_in gFileAddr;
 
 int main(int argc, char* argv[]) {
 	// Validate the parameters
-	/*if (argc != 3)
-	{
-		printf("Usage: %s <ServerIpAddressss> <ServerPortNumber>\n", argv[0]);
+	if (argc != 2) {
+		printf("Usage: %s <ServerIpAddressss>\n", argv[0]);
 		return 1;
 	}
-*/
+
 	//Inittiate Winsock
 	WSADATA wsaData;
 	WORD wVersion = MAKEWORD(2, 2);
@@ -27,7 +26,7 @@ int main(int argc, char* argv[]) {
 		printf("Version is not supported \n");
 
 	//Specify server address
-	char *serverIp = SERVER_ADDR;
+	char *serverIp = argv[1];
 
 	//cmd addr
 	gCmdAddr.sin_family = AF_INET;
@@ -62,7 +61,7 @@ int main(int argc, char* argv[]) {
 	printf("1.LOGIN\n");
 	printf("2.LOGOUT\n");
 	printf("3.REGISTER\n");
-	printf("4.CHANGE PASS\n");
+	printf("4.CHANGE PASSWORD\n");
 	printf("5.STORE FILE\n");
 	printf("6.RETRIEVE FILE\n");
 	printf("7.RENAME FILE\n");

@@ -16,6 +16,7 @@
 #define MAX_CONCURENT_SESSION 15000
 #define TRANSMITFILE_MAX ((2<<30) - 1)
 
+#define HOME "~"
 #define ENDING_DELIMITER "\r\n\r\n"
 #define HEADER_DELIMITER "\r\n"
 #define PARA_DELIMITER "\r"
@@ -44,7 +45,7 @@ extern LPLISTEN_OBJ gFileListen;
 extern HANDLE gCompletionPort;
 extern SQLHANDLE gSqlStmtHandle;
 extern CRITICAL_SECTION gCriticalSection;
-extern std::set<ULONG> gSessionSet;
+extern std::set<ULONG_PTR> gSessionSet;
 
 enum REPLY_CODE {
 	LOGIN_SUCCESS = 110,

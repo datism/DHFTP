@@ -1,4 +1,5 @@
 #pragma once
+#include <WinSock2.h>
 
 #define SERVER_ADDR "127.0.0.1"
 #define CMD_PORT 5500

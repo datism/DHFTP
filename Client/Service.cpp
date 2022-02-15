@@ -22,7 +22,7 @@ void ChangePasRequest(char *sendBuff, const char *oPassword, const char *nPasswo
 	initMessage(sendBuff, CHANGEPASS, oPassword, nPassword);
 }
 
-bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
+bool StoreRequest(LpSession session, char *sendBuff, const char *localFile, const char *remoteFile) {
 	HANDLE hfile;
 	LARGE_INTEGER fileSize;
 
@@ -30,9 +30,13 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 		session->closeFile(FALSE);
 
 	//Open existing file
-	hfile = CreateFileA(fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hfile = CreateFileA(localFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
-		printf("CreateFileA() failed with error %d\n", GetLastError());
+		int error = GetLastError();
+		if (error == ERROR_FILE_NOT_FOUND)
+			printf("Cant find local file\n");
+		else
+			printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
 	else {
@@ -43,27 +47,31 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *fileName) {
 		}
 
 		session->fileobj = GetFileObj(hfile, fileSize.QuadPart, FILEOBJ::STOR);
-		initMessage(sendBuff, STORE, fileName, session->fileobj->size);
+		initMessage(sendBuff, STORE, remoteFile, session->fileobj->size);
 
 		return true;
 	}
 }
 
-bool RetrieveRequest(LpSession session, char * sendBuff, const char * fileName) {
+bool RetrieveRequest(LpSession session, char * sendBuff, const char *localFile, const char *remoteFile) {
 	HANDLE hfile;
 
 	if (session->fileobj != NULL)
 		session->closeFile(TRUE);
 
 	//open new file
-	hfile = CreateFileA(fileName, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	hfile = CreateFileA(localFile, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
-		printf("CreateFileA() failed with error %d\n", GetLastError());
+		int error = GetLastError();
+		if (error == ERROR_FILE_EXISTS)
+			printf("Local file alredy exist\n");
+		else 
+			printf("CreateFileA() failed with error %d\n", GetLastError());
 		return false;
 	}
 	else {
 		session->fileobj = GetFileObj(hfile, 0, FILEOBJ::RETR);
-		initMessage(sendBuff, RETRIEVE, fileName);
+		initMessage(sendBuff, RETRIEVE, remoteFile);
 
 		return true;
 	}
@@ -100,7 +108,7 @@ void ListDirRequest(char *sendBuf, const char *dirPath) {
 void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	strcpy_s(sendBuff, BUFFSIZE, "");
 	int choice;
-	char p1[BUFFSIZE], p2[BUFFSIZE], p3[BUFFSIZE];
+	char p1[BUFFSIZE] = "", p2[BUFFSIZE] = "";
 
 	while (1) {
 		printf("\nChoose service: ");
@@ -143,18 +151,22 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 				return;
 			//Store file
 			case 5:
-				printf("Enter file name: ");
+				printf("Enter local file path: ");
 				gets_s(p1, BUFFSIZE);
+				printf("Enter remote file path: ");
+				gets_s(p2, BUFFSIZE);
 				/*strcpy_s(p1, BUFFSIZE, "testbig.rar");*/
-				if (!StoreRequest(session, sendBuff, p1))
+				if (!StoreRequest(session, sendBuff, p1, p2))
 					break;
 				return;
 			//Retrieve
 			case 6:
-				printf("Enter file name: ");
-				gets_s(p1, BUFFSIZE);
+				printf("Enter remote file path: ");
+				gets_s(p1, BUFFSIZE);;
+				printf("Enter local file path: ");
+				gets_s(p2, BUFFSIZE);
 				/*strcpy_s(p1, BUFFSIZE, "testmid.rar");*/
-				if (!RetrieveRequest(session, sendBuff, p1))
+				if (!RetrieveRequest(session, sendBuff, p2, p1))
 					break;
 				return;
 			case 7:

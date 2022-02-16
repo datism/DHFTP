@@ -236,10 +236,10 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 
 	//havent login
 	if (strlen(session->username) == 0) {
-		/*initParam(reply, NOT_LOGIN, "Retrive failed. Didn't log in");
-		return;*/
-		session->setUsername("test");
-		session->setWorkingDir("test");
+		initParam(reply, NOT_LOGIN, "Retrive failed. Didn't log in");
+		return;
+		/*session->setUsername("test");
+		session->setWorkingDir("test");*/
 	}
 
 	//Check access and get full path
@@ -295,10 +295,10 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 
 	//havent login
 	if (strlen(session->username) == 0) {
-		/*initParam(reply, NOT_LOGIN, "Didn't log in");
-		return;*/
-		session->setUsername("test");
-		session->setWorkingDir("test");
+		initParam(reply, NOT_LOGIN, "Store failed. Didn't log in");
+		return;
+	/*	session->setUsername("test");
+		session->setWorkingDir("test");*/
 	}
 
 	//Check param

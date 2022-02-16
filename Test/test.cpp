@@ -499,7 +499,7 @@ void handleReply(LpSession session, const char *reply) {
 unsigned __stdcall fileTest(void *param) {
 	int numcon = 10;
 	HANDLE hfile;
-	char *fileName = "testmid";
+	char *fileName = "Ignition.pdf";
 	LARGE_INTEGER filesize;
 	LpSession session;
 	int bytes;

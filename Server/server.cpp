@@ -320,7 +320,7 @@ void handleWriteFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ writeObj, _In_ 
 
 		//Change operation to receive file
 		writeObj->operation = IO_OBJ::RECV_F;
-		writeObj->dataBuff.len = BUFFSIZE;
+		writeObj->setBufferRecv("");
 		writeObj->setFileOffset(session->fileobj->bytesRecved);
 
 		session->EnListPendingOperation(writeObj);

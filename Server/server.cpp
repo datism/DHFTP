@@ -355,8 +355,7 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 		LeaveCriticalSection(&(session->cs));
 		return;
 	};
-	LeaveCriticalSection(&(session->cs));
-
+	
 	session->fileobj->bytesSended += transferredBytes;
 	remain = session->fileobj->size - session->fileobj->bytesSended;
 
@@ -371,6 +370,8 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 	sendObj->dataBuff.len = min(remain, TRANSMITFILE_MAX);
 
 	session->EnListPendingOperation(sendObj);
+
+	LeaveCriticalSection(&(session->cs));
 }
 
 /**

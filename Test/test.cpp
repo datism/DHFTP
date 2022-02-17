@@ -497,14 +497,14 @@ void handleReply(LpSession session, const char *reply) {
 }
 
 unsigned __stdcall fileTest(void *param) {
-	int numcon = 10;
+	int numcon = 100;
 	HANDLE hfile;
 	char *fileName = "Ignition.pdf";
 	LARGE_INTEGER filesize;
 	LpSession session;
 	int bytes;
 	char sBuf[BUFFSIZE] = "";
-	DWORD t = (int)param * 10;
+	DWORD t = (int)param * numcon;
 
 	for (int i = 0; i < numcon; i++) {
 		session = getSession();
@@ -530,8 +530,11 @@ unsigned __stdcall fileTest(void *param) {
 			printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 		}
 
+		std::ostringstream sstr;
+		sstr << t + i << ".pdf";
+
 		session->fileobj = GetFileObj(hfile, filesize.QuadPart, FILEOBJ::STOR);
-		initMessage(sBuf, STORE, t + i, session->fileobj->size);
+		initMessage(sBuf, STORE, sstr.str(), session->fileobj->size);
 
 		printf("FILE: %d\n", t + i);
 		LPIO_OBJ sendobj = getIoObject(IO_OBJ::SEND_C, sBuf, strlen(sBuf));

@@ -30,7 +30,7 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *localFile, cons
 		session->closeFile(FALSE);
 
 	//Open existing file
-	hfile = CreateFileA(localFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hfile = CreateFileA(localFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		if (error == ERROR_FILE_NOT_FOUND)
@@ -60,7 +60,7 @@ bool RetrieveRequest(LpSession session, char * sendBuff, const char *localFile, 
 		session->closeFile(TRUE);
 
 	//open new file
-	hfile = CreateFileA(localFile, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	hfile = CreateFileA(localFile, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 	if (hfile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		if (error == ERROR_FILE_EXISTS)

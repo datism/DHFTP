@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 
 	while (1) {
 		chooseService(session, buff);
-		blockSend(session->cmdSock, buff);
+		blockSend(session->cmdSock, buff, strlen(buff));
 
 		strcpy_s(buff, BUFFSIZE, "");
 		

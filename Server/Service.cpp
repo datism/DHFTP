@@ -256,7 +256,7 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 		LeaveCriticalSection(&session->cs);
 		return;
 	}
-	LeaveCriticalSection(&session->cs);
+	
 
 	//Open existing file
 	hFile = CreateFileA(fullPath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -265,10 +265,18 @@ void handleRETRIVE(LPSESSION session, const char *filename, char *reply) {
 		printf("CreateFile failed with error %d\n", GetLastError());
 		if (error == ERROR_FILE_NOT_FOUND)
 			initParam(reply, NOT_EXIST, "Retrive failed. File doesnt exist");
+		else if (error == ERROR_PATH_NOT_FOUND)
+			initParam(reply, NOT_EXIST, "Retrive failed. Path doesnt exist");
+		else if (error == ERROR_SHARING_VIOLATION)
+			initParam(reply, NOT_EXIST, "Retrive failed. File is being used by another process");
 		else
 			initParam(reply, SERVER_FAIL, "Retrive failed. CreateFile failed");
+		
+		LeaveCriticalSection(&session->cs);
 		return;
 	}
+	
+	LeaveCriticalSection(&session->cs);
 
 	GetFileSizeEx(hFile, &fileSize);
 	fileobj = GetFileObj(hFile, fileSize.QuadPart, FILEOBJ::RETR);
@@ -322,21 +330,28 @@ void handleSTORE(LPSESSION session, const char * filename, const char *fileSize,
 		LeaveCriticalSection(&session->cs);
 		return;
 	}
-	LeaveCriticalSection(&session->cs);
+	
 
 	//creat new file
 	HANDLE hFile = CreateFileA(fullPath, GENERIC_WRITE | DELETE, 0, NULL, CREATE_NEW, FILE_FLAG_OVERLAPPED, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		int error = GetLastError();
 		printf("CreateFile failed with error %d\n", GetLastError());
-		if (error == ERROR_FILE_EXISTS) {
+		if (error == ERROR_FILE_EXISTS)
 			initParam(reply, ALREADY_EXIST, "Store failed. File already exsit");
-		}
+		else if (error == ERROR_PATH_NOT_FOUND)
+			initParam(reply, NOT_EXIST, "Store failed. Path doesnt exist");
+		else if (error == ERROR_SHARING_VIOLATION)
+			initParam(reply, NOT_EXIST, "Store failed. File is being used by another process");
 		else
 			initParam(reply, SERVER_FAIL, "Store failed. CreateFile failed");
+
+		LeaveCriticalSection(&session->cs);
 		return;
 	}
-
+	
+	LeaveCriticalSection(&session->cs);
+	
 	//Associates the file hanlde for writing
 	if (CreateIoCompletionPort(hFile, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());

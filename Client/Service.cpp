@@ -256,7 +256,7 @@ void handleReply(LpSession session, const char *reply) {
 			break;
 		}
 		//send session key
-		blockSend(session->fileobj->fileSock, request);
+		blockSend(session->fileobj->fileSock, request, strlen(request));
 
 		printf("Receiving file.....\n");
 		//receive file
@@ -284,7 +284,7 @@ void handleReply(LpSession session, const char *reply) {
 			break;
 		}
 		//send session key
-		blockSend(session->fileobj->fileSock, request);
+		blockSend(session->fileobj->fileSock, request, strlen(request));
 
 		printf("Sending file.....\n");
 		//send file

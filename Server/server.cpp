@@ -463,6 +463,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
 
 				recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, min(BUFFSIZE, session->fileobj->size - session->fileobj->bytesRecved));
+
 				if (recvFobj == NULL) {
 					initMessage(reply, RESPONE, SERVER_FAIL, "Heap out of memory?");
 					replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));

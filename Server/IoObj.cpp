@@ -3,7 +3,7 @@
 #include <MSWSock.h>
 #include "EnvVar.h"
 
-_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length) {
+_Ret_maybenull_ LPIO_OBJ GetIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length) {
 	LPIO_OBJ newobj = NULL;
 
 	if ((newobj = (LPIO_OBJ)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IO_OBJ) + sizeof(BYTE) * length)) == NULL)
@@ -24,7 +24,7 @@ _Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *b
 	return newobj;
 }
 
-void freeIoObject(_In_ LPIO_OBJ ioobj) {
+void FreeIoObject(_In_ LPIO_OBJ ioobj) {
 	HeapFree(GetProcessHeap(), NULL, ioobj);
 }
 

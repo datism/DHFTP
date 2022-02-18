@@ -47,9 +47,12 @@ bool StoreRequest(LpSession session, char *sendBuff, const char *localFile, cons
 		}
 
 		session->fileobj = GetFileObj(hfile, fileSize.QuadPart, FILEOBJ::STOR);
-		initMessage(sendBuff, STORE, remoteFile, session->fileobj->size);
-
-		return true;
+		if (session->fileobj != NULL) {
+			initMessage(sendBuff, STORE, remoteFile, session->fileobj->size);
+			return true;
+		}
+		else
+			return FALSE;
 	}
 }
 
@@ -77,8 +80,8 @@ bool RetrieveRequest(LpSession session, char * sendBuff, const char *localFile, 
 	}
 }
 
-void RenameRequest(char *sendBuf, const char *serverFile, const char *newname) {
-	initMessage(sendBuf, RENAME, serverFile, newname);
+void MoveRequest(char *sendBuf, const char *oldPath, const char *newPath) {
+	initMessage(sendBuf, MOVE, oldPath, newPath);
 }
 
 void DeleteRequest(char *sendBuf, const char *serverFile) {
@@ -105,7 +108,7 @@ void ListDirRequest(char *sendBuf, const char *dirPath) {
 	initMessage(sendBuf, LISTDIR, dirPath);
 }
 
-void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
+void ChooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 	strcpy_s(sendBuff, BUFFSIZE, "");
 	int choice;
 	char p1[BUFFSIZE] = "", p2[BUFFSIZE] = "";
@@ -169,44 +172,53 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 				if (!RetrieveRequest(session, sendBuff, p2, p1))
 					break;
 				return;
+			//Move 
 			case 7:
-				printf("Enter server file path: ");
+				printf("Enter old path: ");
 				gets_s(p1, BUFFSIZE);
-				printf("Enter new name: ");
+				printf("Enter new path: ");
 				gets_s(p2, BUFFSIZE);
-				RenameRequest(sendBuff, p1, p2);
+				MoveRequest(sendBuff, p1, p2);
 				return;
+			//Delete file
 			case 8:
 				printf("Enter server file path: ");
 				gets_s(p1, BUFFSIZE);
 				DeleteRequest(sendBuff, p1);
 				return;
+			//Make Directory
 			case 9:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				MakeDirRequest(sendBuff, p1);
 				return;
+			//Remove Directory
 			case 10:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				RemoveDirRequest(sendBuff, p1);
 				return;
+			//Change working directory
 			case 11:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				ChangeWDirRequest(sendBuff, p1);
 				return;
+			//Print working directory
 			case 12:
 				PrintWDirRequest(sendBuff);
 				return;
+			//List directory
 			case 13:
 				printf("Enter directory path: ");
 				gets_s(p1, BUFFSIZE);
 				ListDirRequest(sendBuff, p1);
 				return;
+			//Help
 			case 14:
 				Help();
 				break;
+			//Exit
 			case 15:
 				FreeSession(session);
 				WSACleanup();
@@ -218,7 +230,7 @@ void chooseService(_Inout_ LpSession session, _Out_ char *sendBuff) {
 
 }
 
-void handleReply(LpSession session, const char *reply) {
+void HandleReply(LpSession session, const char *reply) {
 	char header[BUFFSIZE] = "", request[BUFFSIZE] = "";
 	const char *p1, *p2, *p3;
 	std::vector<std::string> para;
@@ -256,7 +268,7 @@ void handleReply(LpSession session, const char *reply) {
 			break;
 		}
 		//send session key
-		blockSend(session->fileobj->fileSock, request);
+		blockSend(session->fileobj->fileSock, request, strlen(request));
 
 		printf("Receiving file.....\n");
 		//receive file
@@ -284,7 +296,7 @@ void handleReply(LpSession session, const char *reply) {
 			break;
 		}
 		//send session key
-		blockSend(session->fileobj->fileSock, request);
+		blockSend(session->fileobj->fileSock, request, strlen(request));
 
 		printf("Sending file.....\n");
 		//send file
@@ -311,7 +323,7 @@ void Help() {
 	printf("4.CHANGE PASSWORD\n");
 	printf("5.STORE FILE\n");
 	printf("6.RETRIEVE FILE\n");
-	printf("7.RENAME FILE/FOLDER\n");
+	printf("7.MOVE FILE/FOLDER\n");
 	printf("8.DELETE FILE\n");
 	printf("9.MAKE DIRECTORY\n");
 	printf("10.REMOVE DIRECTORY\n");

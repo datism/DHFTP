@@ -32,7 +32,13 @@ int main(int argc, char *argv[]) {
 	WSAEVENT waitEvents[WSA_MAXIMUM_WAIT_EVENTS];
 	int rc, waitCount = 0;
 
-	if (!connectSQL())
+	// Validate the parameters
+	if (argc != 4) {
+		printf("Usage: %s <ServerIpAddressss> <ServerCmdPort> <ServerFilePort>\n", argv[0]);
+		return 1;
+	}
+
+	if (!connectSQL("FileSystem", "sa", "minh1234"))
 		return 1;
 
 	WSADATA wsaData;
@@ -64,8 +70,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	//Creat listenobj
-	gCmdListen = getListenObj(CMD_PORT);
-	gFileListen = getListenObj(FILE_PORT);
+	gCmdListen = GetListenObj(argv[1], atoi(argv[2]));
+	gFileListen = GetListenObj(argv[1], atoi(argv[3]));
 
 	if (gCmdListen == NULL || gFileListen == NULL)
 		return 1;
@@ -88,7 +94,7 @@ int main(int argc, char *argv[]) {
 
 	//Post some initial accepctex
 	for (int i = 0; i < gInitialAccepts; ++i) {
-		acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
+		acceptobj = GetIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
 		if (acceptobj == NULL) {
 			printf("Out of memory!\n");
 			return -1;
@@ -124,7 +130,7 @@ int main(int argc, char *argv[]) {
 
 					EnterCriticalSection(&gCriticalSection);
 					for (ULONG_PTR session : gSessionSet)
-						freeSession((LPSESSION)session);
+						FreeSession((LPSESSION)session);
 					LeaveCriticalSection(&gCriticalSection);
 
 					DeleteCriticalSection(&gCriticalSection);
@@ -145,7 +151,7 @@ int main(int argc, char *argv[]) {
 							//Dont accept connection if session count over limit
 							if (gSessionSet.size() < MAX_CONCURENT_SESSION) {
 								for (int i = 0; i < gInitialAccepts && gCmdListen->count < MAX_OUSTANDING_ACCEPTCMD; ++i) {
-									acceptobj = getIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
+									acceptobj = GetIoObject(IO_OBJ::ACPT_C, NULL, BUFFSIZE);
 									if (acceptobj == NULL) {
 										printf("Out of memory!\n");
 										LeaveCriticalSection(&gCriticalSection);
@@ -168,7 +174,7 @@ int main(int argc, char *argv[]) {
 						WSAResetEvent(gFileListen->acceptEvent);
 
 						while (gFileListen->count > 0) {
-							acceptobj = getIoObject(IO_OBJ::ACPT_F, NULL, BUFFSIZE);
+							acceptobj = GetIoObject(IO_OBJ::ACPT_F, NULL, BUFFSIZE);
 							if (acceptobj == NULL) {
 								printf("Out of memory!\n");
 								LeaveCriticalSection(&gCriticalSection);
@@ -209,7 +215,7 @@ void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ 
 	DWORD flags = 0;
 
 	if (transferredBytes == 0) {
-		freeIoObject(recieveObj);
+		FreeIoObject(recieveObj);
 		InterlockedExchange(&session->bclosing, 1);
 		return;
 	}
@@ -217,12 +223,12 @@ void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ 
 	//Split string by ending delimiter
 	while (((pos = strstr(mess, ENDING_DELIMITER)) != NULL) && session->outstandingSend < MAX_SEND_PER_SESSION)   {
 		*pos = 0;
-		handleMess(session, mess, reply);
+		HandleMess(session, mess, reply);
 
 		if (strlen(reply) == 0)
 			break;
 
-		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
+		replyObj = GetIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 		if (replyObj == NULL)
 			break;
 
@@ -247,7 +253,7 @@ void handleRecieve(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recieveObj, _In_ 
  */
 void handleSend(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DWORD transferredBytes) {
 	if (transferredBytes == 0) {
-		freeIoObject(sendObj);
+		FreeIoObject(sendObj);
 		InterlockedExchange(&session->bclosing, 1);
 		return;
 	}
@@ -255,7 +261,7 @@ void handleSend(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DWORD 
 	if (transferredBytes != sendObj->dataBuff.len)
 		printf("Internal error?\n");
 
-	freeIoObject(sendObj);
+	FreeIoObject(sendObj);
 	InterlockedDecrement(&session->outstandingSend);
 }
 
@@ -268,7 +274,7 @@ void handleSend(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DWORD 
  */
 void handleRecvFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ recvObj, _In_ DWORD transferredBytes) {
 	if (transferredBytes == 0) {
-		freeIoObject(recvObj);
+		FreeIoObject(recvObj);
 		session->closeFile(TRUE);
 		return;
 	}
@@ -291,13 +297,13 @@ void handleWriteFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ writeObj, _In_ 
 
 	//file is closed
 	if (!session->fileobj) {
-		freeIoObject(writeObj);
+		FreeIoObject(writeObj);
 		LeaveCriticalSection(&(session->cs));
 		return;
 	}
 
 	if (transferredBytes == 0) {
-		freeIoObject(writeObj);
+		FreeIoObject(writeObj);
 		session->closeFile(TRUE);
 		LeaveCriticalSection(&(session->cs));
 		return;
@@ -307,12 +313,12 @@ void handleWriteFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ writeObj, _In_ 
 
 	//have write all data
 	if (session->fileobj->bytesWritten == session->fileobj->size) {
-		freeIoObject(writeObj);
+		FreeIoObject(writeObj);
 		session->closeFile(FALSE);
 	}
 	//have recv all data
 	else if (session->fileobj->bytesRecved == session->fileobj->size) {
-		freeIoObject(writeObj);
+		FreeIoObject(writeObj);
 	}
 	//Still have data to receive
 	else {
@@ -343,7 +349,7 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 	LONG64 remain;
 
 	if (transferredBytes == 0) {
-		freeIoObject(sendObj);
+		FreeIoObject(sendObj);
 		session->closeFile(TRUE);
 		return;
 	}
@@ -351,7 +357,7 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 	EnterCriticalSection(&(session->cs));
 	//file is closed
 	if (!session->fileobj) {
-		freeIoObject(sendObj);
+		FreeIoObject(sendObj);
 		LeaveCriticalSection(&(session->cs));
 		return;
 	};
@@ -361,15 +367,16 @@ void hanldeSendFile(_Inout_ LPSESSION session, _Inout_ LPIO_OBJ sendObj, _In_ DW
 
 	//have send all data
 	if (remain <= 0) {
-		freeIoObject(sendObj);
+		FreeIoObject(sendObj);
 		session->closeFile(FALSE);
-		return;
+		
 	}
+	else {
+		sendObj->setFileOffset(session->fileobj->bytesSended);
+		sendObj->dataBuff.len = min(remain, TRANSMITFILE_MAX);
 
-	sendObj->setFileOffset(session->fileobj->bytesSended);
-	sendObj->dataBuff.len = min(remain, TRANSMITFILE_MAX);
-
-	session->EnListPendingOperation(sendObj);
+		session->EnListPendingOperation(sendObj);
+	}
 
 	LeaveCriticalSection(&(session->cs));
 }
@@ -393,7 +400,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 	//buffer dont end with ending delimiter
 	if (strcmp(acceptObj->buffer + transferredBytes - strlen(ENDING_DELIMITER), ENDING_DELIMITER)) {
 		closesocket(acceptObj->acceptSock);
-		freeIoObject(acceptObj);
+		FreeIoObject(acceptObj);
 		session = NULL;
 		return;
 	}
@@ -405,7 +412,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 	//buffer dont have connect header
 	if (strcmp(cmd, CONNECT) || para.size() != 1) {
 		closesocket(acceptObj->acceptSock);
-		freeIoObject(acceptObj);
+		FreeIoObject(acceptObj);
 		session = NULL;
 		return;
 	}
@@ -418,21 +425,21 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 	//session doesnt exsit or have been closed
 	if (gSessionSet.find((ULONG_PTR)session) == gSessionSet.end()) {
 		closesocket(acceptObj->acceptSock);
-		freeIoObject(acceptObj);
+		FreeIoObject(acceptObj);
 		session = NULL;
 		LeaveCriticalSection(&gCriticalSection);
 		return;
 	}
 
 	session->fileobj->fileSock = acceptObj->acceptSock;
-	freeIoObject(acceptObj);
+	FreeIoObject(acceptObj);
 
 	//attach file socket to completionport
 	if (CreateIoCompletionPort((HANDLE)session->fileobj->fileSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
 
 		initMessage(reply, RESPONE, SERVER_FAIL, "CreateIoCompletionPort failed");
-		replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
+		replyObj = GetIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 		session->EnListPendingOperation(replyObj);
 	}
 
@@ -441,7 +448,7 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 		case FILEOBJ::RETR:
 			LPIO_OBJ sendFObj;
 		
-			sendFObj = getIoObject(IO_OBJ::SEND_F, NULL, 0);
+			sendFObj = GetIoObject(IO_OBJ::SEND_F, NULL, 0);
 			sendFObj->dataBuff.len = min(session->fileobj->size, TRANSMITFILE_MAX);
 			session->EnListPendingOperation(sendFObj);
 			break;
@@ -456,16 +463,17 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 				(char *)&listenobj->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
 				printf("setsockopt failed with error %d\n", WSAGetLastError());
 				closesocket(acceptObj->acceptSock);
-				freeIoObject(acceptObj);
+				FreeIoObject(acceptObj);
 			}
 
 			//Receive and write file in chunks
 			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
 
-				recvFobj = getIoObject(IO_OBJ::RECV_F, NULL, min(BUFFSIZE, session->fileobj->size - session->fileobj->bytesRecved));
+				recvFobj = GetIoObject(IO_OBJ::RECV_F, NULL, min(BUFFSIZE, session->fileobj->size - session->fileobj->bytesRecved));
+
 				if (recvFobj == NULL) {
 					initMessage(reply, RESPONE, SERVER_FAIL, "Heap out of memory?");
-					replyObj = getIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
+					replyObj = GetIoObject(IO_OBJ::SEND_C, reply, strlen(reply));
 					session->EnListPendingOperation(replyObj);
 					break;
 				}
@@ -497,13 +505,13 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
 		(char *)&listenobj->sock, sizeof(SOCKET)) == SOCKET_ERROR) {
 		printf("setsockopt failed with error %d\n", WSAGetLastError());
 		closesocket(acceptObj->acceptSock);
-		freeIoObject(acceptObj);
+		FreeIoObject(acceptObj);
 		session = NULL;
 		return;
 	}
 
 
-	session = getSession();
+	session = GetSession();
 	if (session == NULL)
 		return;
 	session->cmdSock = acceptObj->acceptSock;
@@ -511,9 +519,9 @@ void handleAcceptCmd(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _Ino
 	//attach new socket to completionport
 	if (CreateIoCompletionPort((HANDLE)session->cmdSock, gCompletionPort, (ULONG_PTR)session, 0) == NULL) {
 		printf("CreateIoCompletionPort() failed with error %d\n", GetLastError());
-		freeIoObject(acceptObj);
+		FreeIoObject(acceptObj);
 		closesocket(session->cmdSock);
-		freeSession(session);
+		FreeSession(session);
 		session = NULL;
 		return;
 	}
@@ -590,7 +598,7 @@ void ProcessPendingOperations(_In_ LPSESSION session) {
 		if (noError)
 			InterlockedIncrement(&session->oustandingOp);
 		else
-			freeIoObject(ioobj);
+			FreeIoObject(ioobj);
 
 		session->pending->pop_front();
 	}
@@ -617,7 +625,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 				if (closesocket(ioobj->acceptSock) == SOCKET_ERROR) {
 					printf("closesocket failed with error %d\n", WSAGetLastError());
 				}
-				freeIoObject(ioobj);
+				FreeIoObject(ioobj);
 				continue;
 			}
 			//transmit failed
@@ -632,7 +640,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 			listen = (LPLISTEN_OBJ) key;
 
 			if (listen == NULL) {
-				freeIoObject(ioobj);
+				FreeIoObject(ioobj);
 				continue;
 			}
 
@@ -648,13 +656,13 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 			session = (LPSESSION) key;
 
 			if (session == NULL) {
-				freeIoObject(ioobj);
+				FreeIoObject(ioobj);
 				continue;
 			}
 
 			//session is closing
 			if (InterlockedCompareExchange(&session->bclosing, 0, 0) != 0) {
-				freeIoObject(ioobj);
+				FreeIoObject(ioobj);
 			}
 			else {
 				switch (ioobj->operation) {
@@ -678,7 +686,7 @@ unsigned __stdcall serverWorkerThread(LPVOID completionPortID) {
 				//delete session
 				EnterCriticalSection(&gCriticalSection);
 				gSessionSet.erase((ULONG_PTR)session);
-				freeSession(session);
+				FreeSession(session);
 				LeaveCriticalSection(&gCriticalSection);
 			}
 

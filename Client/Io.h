@@ -6,10 +6,11 @@
  * 
  * @param sock 
  * @param sendBuff send buffer
+ * @param len buffer's length
  * @return true if wsasend doesnt fail 
  * @return false if wsasend fail 
  */
-bool blockSend(_In_ SOCKET sock, _In_ char *sendBuff);
+bool blockSend(_In_ SOCKET sock, _In_ char *sendBuff, DWORD len);
 
 /**
  * @brief wrapper for block wsarecv

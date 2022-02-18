@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "EnvVar.h"
 
-_Ret_maybenull_ LPLISTEN_OBJ getListenObj(_In_ WORD port) {
+_Ret_maybenull_ LPLISTEN_OBJ GetListenObj(_In_ char *ipAddr, _In_ WORD port) {
 	LPLISTEN_OBJ newObj = NULL;
 	GUID guidAcceptEx = WSAID_ACCEPTEX, 
 		guidGetAcceptExSockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
@@ -28,7 +28,7 @@ _Ret_maybenull_ LPLISTEN_OBJ getListenObj(_In_ WORD port) {
 	//bind
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	inet_pton(AF_INET, SERVER_ADDR, &addr.sin_addr);
+	inet_pton(AF_INET, ipAddr, &addr.sin_addr);
 	if (bind(newObj->sock, (PSOCKADDR)&addr, sizeof(addr)) == SOCKET_ERROR) {
 		printf("bind() failed with error %d\n", WSAGetLastError());
 		return NULL;

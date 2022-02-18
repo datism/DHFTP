@@ -41,12 +41,12 @@ typedef struct SESSION {
  * 
  * @return new session obj or NULL if out of memory
  */
-_Ret_maybenull_ LPSESSION getSession();
+_Ret_maybenull_ LPSESSION GetSession();
 
 /**
  * @brief free session obj
  * 
  * @param LPSESSION session
  */
-void freeSession(_In_ LPSESSION session);
+void FreeSession(_In_ LPSESSION session);
 

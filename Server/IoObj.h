@@ -46,14 +46,14 @@ typedef struct IO_OBJ {
  * @param length length of buffer 
  * @return new ioobj or null if dont have enough memory
  */
-_Ret_maybenull_ LPIO_OBJ getIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);
+_Ret_maybenull_ LPIO_OBJ GetIoObject(_In_ IO_OBJ::OP operation, _In_opt_ char *buffer, _In_ DWORD length);
 
 /**
  * @brief Free IO_OBJ
  * 
  * @param ioobj 
  */
-void freeIoObject(_In_ LPIO_OBJ ioobj);
+void FreeIoObject(_In_ LPIO_OBJ ioobj);
 
 /**
  * @brief wrapper for overlapped wsasend

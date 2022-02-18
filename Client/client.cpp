@@ -14,8 +14,8 @@ sockaddr_in gFileAddr;
 
 int main(int argc, char* argv[]) {
 	// Validate the parameters
-	if (argc != 2) {
-		printf("Usage: %s <ServerIpAddressss>\n", argv[0]);
+	if (argc != 4) {
+		printf("Usage: %s <ServerIpAddressss> <ServerCmdPort> <ServerFilePort>\n", argv[0]);
 		return 1;
 	}
 
@@ -30,13 +30,13 @@ int main(int argc, char* argv[]) {
 
 	//cmd addr
 	gCmdAddr.sin_family = AF_INET;
-	int cmdPort = CMD_PORT;
+	int cmdPort = atoi(argv[2]);
 	gCmdAddr.sin_port = htons(cmdPort);
 	inet_pton(AF_INET, serverIp, &gCmdAddr.sin_addr);
 
 	//file addr
 	gFileAddr.sin_family = AF_INET;
-	int filePort = FILE_PORT;
+	int filePort = atoi(argv[3]);
 	gFileAddr.sin_port = htons(filePort);
 	inet_pton(AF_INET, serverIp, &gFileAddr.sin_addr);
 
@@ -61,8 +61,8 @@ int main(int argc, char* argv[]) {
 	Help();
 
 	while (1) {
-		chooseService(session, buff);
-		blockSend(session->cmdSock, buff);
+		ChooseService(session, buff);
+		blockSend(session->cmdSock, buff, strlen(buff));
 
 		strcpy_s(buff, BUFFSIZE, "");
 		
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
 			while ((pos = strstr(reply, ENDING_DELIMITER)) != NULL) {
 				*pos = 0;
-				handleReply(session, reply);
+				HandleReply(session, reply);
 				reply = pos + strlen(ENDING_DELIMITER);
 			}
 

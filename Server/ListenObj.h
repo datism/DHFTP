@@ -15,5 +15,5 @@ typedef struct {
 	LPFN_ACCEPTEX lpfnAcceptEx;
 } LISTEN_OBJ, *LPLISTEN_OBJ;
 
-_Ret_maybenull_ LPLISTEN_OBJ getListenObj(_In_ WORD port);
+_Ret_maybenull_ LPLISTEN_OBJ GetListenObj(_In_ char *ipAddr, _In_ WORD port);
 void FreeListenObj(_In_ LPLISTEN_OBJ listenobj);

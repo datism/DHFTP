@@ -38,7 +38,7 @@ void SESSION::closeFile(BOOL deleteFile) {
 	LeaveCriticalSection(&this->cs);
 }
 
-_Ret_maybenull_ LPSESSION getSession() {
+_Ret_maybenull_ LPSESSION GetSession() {
 	LPSESSION session;
 
 	if ((session = (LPSESSION)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(SESSION))) == NULL)
@@ -52,7 +52,7 @@ _Ret_maybenull_ LPSESSION getSession() {
 	return session;
 }
 
-void freeSession(_In_ LPSESSION session) {
+void FreeSession(_In_ LPSESSION session) {
 	//logout
 	if (strlen(session->username) != 0) {
 		char s[BUFFSIZE]= "";
@@ -70,7 +70,7 @@ void freeSession(_In_ LPSESSION session) {
 
 	//free ioobj in pending list
 	for (LPIO_OBJ ioobj : *session->pending)
-		freeIoObject(ioobj);
+		FreeIoObject(ioobj);
 	free(session->pending);
 
 	DeleteCriticalSection(&(session->cs));

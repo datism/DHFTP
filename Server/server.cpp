@@ -468,7 +468,6 @@ void handleAcceptFile(_In_ LPLISTEN_OBJ listenobj, _Out_ LPSESSION &session, _In
 
 			//Receive and write file in chunks
 			while (session->fileobj->bytesRecved < session->fileobj->size && i++ < MAX_IOOBJ_PER_FILEOBJ) {
-
 				recvFobj = GetIoObject(IO_OBJ::RECV_F, NULL, min(BUFFSIZE, session->fileobj->size - session->fileobj->bytesRecved));
 
 				if (recvFobj == NULL) {
